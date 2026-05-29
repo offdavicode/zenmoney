@@ -6,7 +6,15 @@ from sqlalchemy.orm import Session
 from config import settings
 from models.revoked_token import RevokedToken
 from models.user import User
-from schemas.user import AccessTokenResponse, LogoutResponse, UserCreate, UserLogin
+from schemas.user import (
+    AccessTokenResponse,
+    LogoutResponse,
+    PasswordChangeResponse,
+    UserCreate,
+    UserLogin,
+    UserPasswordUpdate,
+    UserProfileUpdate,
+)
 from utils.security import create_access_token, decode_access_token, hash_password, verify_password
 
 
@@ -100,6 +108,57 @@ class AuthService:
             self.db.commit()
 
         return LogoutResponse(message="Logout completed successfully.")
+
+    def update_profile(self, current_user: User, payload: UserProfileUpdate) -> User:
+        has_changes = False
+
+        if payload.name is not None:
+            normalized_name = payload.name.strip()
+            if normalized_name != current_user.name:
+                current_user.name = normalized_name
+                has_changes = True
+
+        if payload.email is not None:
+            normalized_email = payload.email.strip().lower()
+            if normalized_email != current_user.email:
+                existing_user = self.db.scalar(
+                    select(User).where(
+                        User.email == normalized_email,
+                        User.id != current_user.id,
+                    )
+                )
+                if existing_user is not None:
+                    raise AuthServiceError("A user with this e-mail already exists.", 409)
+
+                current_user.email = normalized_email
+                has_changes = True
+
+        if not has_changes:
+            return current_user
+
+        self.db.commit()
+        self.db.refresh(current_user)
+        return current_user
+
+    def change_password(
+        self,
+        current_user: User,
+        payload: UserPasswordUpdate,
+    ) -> PasswordChangeResponse:
+        if not verify_password(payload.current_password, current_user.password_hash):
+            raise AuthServiceError("Current password is incorrect.", 401)
+
+        if payload.current_password == payload.new_password:
+            raise AuthServiceError(
+                "The new password must be different from the current password.",
+                400,
+            )
+
+        current_user.password_hash = hash_password(payload.new_password)
+        self.db.commit()
+        self.db.refresh(current_user)
+
+        return PasswordChangeResponse(message="Password updated successfully.")
 
     def _register_failed_login_attempt(self, user: User) -> None:
         user.failed_login_attempts += 1

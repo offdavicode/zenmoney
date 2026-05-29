@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TransactionCreate(BaseModel):
-    user_id: int
     category_id: int | None = None
     type: str = Field(pattern="^(income|expense)$")
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)

@@ -44,6 +44,133 @@ def test_register_login_me_and_logout_cycle(client):
     assert revoked_response.json()["detail"] == "Token has been revoked."
 
 
+def test_authenticated_user_can_update_profile(client):
+    client.post(
+        "/api/auth/register",
+        json={
+            "name": "Ana Souza",
+            "email": "ana@example.com",
+            "password": "Senha@123",
+        },
+    )
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "ana@example.com",
+            "password": "Senha@123",
+        },
+    )
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    update_response = client.put(
+        "/api/settings/profile",
+        headers=headers,
+        json={
+            "name": "Ana Paula Souza",
+            "email": "ana.paula@example.com",
+        },
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["name"] == "Ana Paula Souza"
+    assert update_response.json()["email"] == "ana.paula@example.com"
+
+    profile_response = client.get("/api/settings/profile", headers=headers)
+    assert profile_response.status_code == 200
+    assert profile_response.json()["email"] == "ana.paula@example.com"
+
+
+def test_authenticated_user_can_change_password(client):
+    client.post(
+        "/api/auth/register",
+        json={
+            "name": "Lucas Costa",
+            "email": "lucas@example.com",
+            "password": "Senha@123",
+        },
+    )
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "lucas@example.com",
+            "password": "Senha@123",
+        },
+    )
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    change_password_response = client.put(
+        "/api/settings/password",
+        headers=headers,
+        json={
+            "current_password": "Senha@123",
+            "new_password": "NovaSenha@456",
+        },
+    )
+
+    assert change_password_response.status_code == 200
+    assert change_password_response.json()["message"] == "Password updated successfully."
+
+    old_login_response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "lucas@example.com",
+            "password": "Senha@123",
+        },
+    )
+    assert old_login_response.status_code == 401
+
+    new_login_response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "lucas@example.com",
+            "password": "NovaSenha@456",
+        },
+    )
+    assert new_login_response.status_code == 200
+
+
+def test_profile_update_rejects_duplicate_email(client):
+    client.post(
+        "/api/auth/register",
+        json={
+            "name": "Primeiro Usuario",
+            "email": "primeiro@example.com",
+            "password": "Senha@123",
+        },
+    )
+    client.post(
+        "/api/auth/register",
+        json={
+            "name": "Segundo Usuario",
+            "email": "segundo@example.com",
+            "password": "Senha@123",
+        },
+    )
+
+    login_response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "segundo@example.com",
+            "password": "Senha@123",
+        },
+    )
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    update_response = client.put(
+        "/api/settings/profile",
+        headers=headers,
+        json={"email": "primeiro@example.com"},
+    )
+
+    assert update_response.status_code == 409
+    assert update_response.json()["detail"] == "A user with this e-mail already exists."
+
+
 def test_login_is_temporarily_blocked_after_repeated_invalid_attempts(client):
     client.post(
         "/api/auth/register",
