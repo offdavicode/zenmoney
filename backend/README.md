@@ -29,5 +29,5 @@ As dependencias estao listadas em `requirements.txt`.
 
 ## Observacao desta versao
 
-Esta etapa entrega a base estrutural da arquitetura v2 e os stubs das features. As regras de negocio vao sendo preenchidas na ordem que voce definir.
+Esta etapa entrega a base estrutural da arquitetura v2 e os stubs das features. As regras de negocio vao sendo preenchidas a medida que o projeto avançar.
 
