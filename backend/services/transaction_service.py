@@ -5,6 +5,7 @@ from models.category import Category
 from models.transaction import Transaction
 from models.user import User
 from schemas.transaction import TransactionCreate, TransactionUpdate
+from utils.emotion_rules import DEFAULT_EMOTION, normalize_emotion
 
 
 class TransactionServiceError(Exception):
@@ -32,7 +33,7 @@ class TransactionService:
             amount=payload.amount,
             date=payload.date,
             description=self._normalize_description(payload.description),
-            emotion=self._normalize_emotion(payload.emotion),
+            emotion=self._resolve_emotion(payload.type, payload.emotion),
         )
         self.db.add(transaction)
         self.db.commit()
@@ -83,8 +84,8 @@ class TransactionService:
             transaction.date = update_data["date"]
         if "description" in update_data:
             transaction.description = self._normalize_description(update_data["description"])
-        if "emotion" in update_data:
-            transaction.emotion = self._normalize_emotion(update_data["emotion"])
+        next_emotion = update_data.get("emotion", transaction.emotion)
+        transaction.emotion = self._resolve_emotion(next_type, next_emotion)
         if "category_id" in update_data:
             transaction.category_id = category.id if category is not None else None
 
@@ -138,9 +139,7 @@ class TransactionService:
         return normalized or None
 
     @staticmethod
-    def _normalize_emotion(emotion: str | None) -> str:
-        if emotion is None:
-            return "not_specified"
-
-        normalized = emotion.strip()
-        return normalized or "not_specified"
+    def _resolve_emotion(transaction_type: str, emotion: str | None) -> str:
+        if transaction_type != "expense":
+            return DEFAULT_EMOTION
+        return normalize_emotion(emotion)

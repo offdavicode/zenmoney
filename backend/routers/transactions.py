@@ -4,8 +4,10 @@ from sqlalchemy.orm import Session
 from auth_dependencies import get_current_user
 from database import get_db
 from models.user import User
+from schemas.emotion import EmotionOptionResponse
 from schemas.transaction import TransactionCreate, TransactionResponse, TransactionUpdate
 from services.transaction_service import TransactionService, TransactionServiceError
+from utils.emotion_rules import build_emotion_options
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -33,6 +35,11 @@ def list_transactions(
         return service.list_transactions(current_user)
     except TransactionServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.get("/emotions", response_model=list[EmotionOptionResponse])
+def list_emotions():
+    return build_emotion_options()
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

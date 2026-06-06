@@ -1,31 +1,56 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from auth_dependencies import get_current_user
 from database import get_db
 from models.user import User
+from schemas.budget import BudgetAlertCheckResponse, BudgetSettingsResponse, BudgetSettingsUpdate
 from schemas.user import PasswordChangeResponse, UserPasswordUpdate, UserProfileUpdate, UserResponse
-from services.auth_service import AuthService, AuthServiceError
 from services.alert_service import AlertService
+from services.auth_service import AuthService, AuthServiceError
+from services.budget_service import BudgetService, BudgetServiceError
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
-@router.get("/budget")
-def get_budget(user_id: int = Query(...), db: Session = Depends(get_db)):
+@router.get("/budget", response_model=BudgetSettingsResponse)
+def get_budget(
+    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = BudgetService(db)
+    try:
+        return service.get_budget_settings(current_user, month)
+    except BudgetServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.put("/budget", response_model=BudgetSettingsResponse)
+def update_budget(
+    payload: BudgetSettingsUpdate,
+    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = BudgetService(db)
+    try:
+        return service.update_budget_settings(current_user, payload, month)
+    except BudgetServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.get("/budget/alert", response_model=BudgetAlertCheckResponse)
+def check_budget_alert(
+    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     service = AlertService(db)
     try:
-        return service.get_budget_status(user_id)
-    except NotImplementedError as exc:
-        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=str(exc)) from exc
-
-
-@router.put("/budget")
-def update_budget(user_id: int = Query(...), db: Session = Depends(get_db)):
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Budget update has not been implemented yet.",
-    )
+        return service.check_budget_alert(current_user, month)
+    except BudgetServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.get("/profile", response_model=UserResponse)

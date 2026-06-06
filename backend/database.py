@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -49,6 +49,47 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def create_db_and_tables() -> None:
-    from models import category, recurrence, revoked_token, transaction, user  # noqa: F401
+    from models import budget_alert, budget_limit, category, recurrence, revoked_token, transaction, user  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        seed_default_categories(db)
+        align_stored_emotions(db)
+
+
+def seed_default_categories(db: Session) -> None:
+    from sqlalchemy import select
+
+    from models.category import Category
+    from utils.category_rules import build_default_category_rows
+
+    default_rows = build_default_category_rows()
+    for row in default_rows:
+        existing_category = db.scalar(
+            select(Category).where(
+                Category.name == row["name"],
+                Category.type == row["type"],
+                Category.user_id.is_(None),
+            )
+        )
+        if existing_category is None:
+            db.add(Category(**row))
+
+    db.commit()
+
+
+def align_stored_emotions(db: Session) -> None:
+    from models.recurrence import Recurrence
+    from models.transaction import Transaction
+    from utils.emotion_rules import DEFAULT_EMOTION, VALID_EMOTIONS
+
+    for model in (Transaction, Recurrence):
+        db.execute(
+            update(model)
+            .where(
+                (model.type != "expense")
+                | (model.emotion.not_in(VALID_EMOTIONS))
+            )
+            .values(emotion=DEFAULT_EMOTION)
+        )
+    db.commit()

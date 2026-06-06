@@ -31,3 +31,5 @@ class User(Base):
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
     recurrences = relationship("Recurrence", back_populates="user", cascade="all, delete-orphan")
     revoked_tokens = relationship("RevokedToken", back_populates="user", cascade="all, delete-orphan")
+    budget_limits = relationship("BudgetLimit", back_populates="user", cascade="all, delete-orphan")
+    budget_alerts = relationship("BudgetAlert", back_populates="user", cascade="all, delete-orphan")

@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database import Base, get_db
+from database import Base, get_db, seed_default_categories
 from main import app
 
 
@@ -25,6 +25,8 @@ def client() -> Generator[TestClient, None, None]:
     )
 
     Base.metadata.create_all(bind=engine)
+    with TestingSessionLocal() as db:
+        seed_default_categories(db)
 
     def override_get_db() -> Generator[Session, None, None]:
         db = TestingSessionLocal()
