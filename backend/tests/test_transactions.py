@@ -46,6 +46,8 @@ def test_authenticated_user_can_create_list_update_and_delete_transactions(clien
     assert create_response.status_code == 201
     created_transaction = create_response.json()
     assert created_transaction["type"] == "expense"
+    assert created_transaction["is_recurring"] is False
+    assert created_transaction["registered_at"].endswith("-03:00")
     assert created_transaction["description"] == "Mercado da semana"
     assert created_transaction["emotion"] == "ansiedade"
 
@@ -72,6 +74,7 @@ def test_authenticated_user_can_create_list_update_and_delete_transactions(clien
     assert update_response.json()["amount"] == "75.50"
     assert update_response.json()["description"] == "Feira e mercado"
     assert update_response.json()["emotion"] == "not_specified"
+    assert update_response.json()["registered_at"] == created_transaction["registered_at"]
 
     delete_response = client.delete(f"/api/transactions/{transaction_id}", headers=headers)
     assert delete_response.status_code == 204

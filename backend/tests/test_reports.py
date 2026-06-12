@@ -65,6 +65,7 @@ def _create_expense_category(client, headers: dict[str, str], name: str) -> int:
         "/api/reports/summary",
         "/api/reports/by-emotion",
         "/api/reports/by-category",
+        "/api/reports/visual",
         "/api/reports/triggers",
     ],
 )
@@ -448,3 +449,307 @@ def test_spending_triggers_return_empty_list_without_expenses(client):
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_visual_report_returns_empty_sections_without_expenses(client):
+    token = _register_and_login(client, "Wesley Moraes", "wesley@example.com")
+    headers = _auth_headers(token)
+
+    response = client.get("/api/reports/visual", headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_expense"] == "0.00"
+    assert data["category_distribution"]["pie_items"] == []
+    assert data["category_distribution"]["bar_items"] == []
+    assert data["category_distribution"]["textual_items"] == []
+    assert data["emotion_distribution"]["pie_items"] == []
+
+
+def test_report_month_filter_is_applied_to_summary_and_visual_report(client):
+    token = _register_and_login(client, "Yara Dias", "yara@example.com")
+    headers = _auth_headers(token)
+
+    for amount, transaction_date in (
+        ("100.00", "2026-05-31"),
+        ("200.00", "2026-06-01"),
+        ("300.00", "2026-06-30"),
+        ("400.00", "2026-07-01"),
+    ):
+        client.post(
+            "/api/transactions/",
+            headers=headers,
+            json={
+                "type": "expense",
+                "amount": amount,
+                "date": transaction_date,
+                "emotion": "calma",
+            },
+        )
+
+    summary_response = client.get("/api/reports/summary?month=2026-06", headers=headers)
+    visual_response = client.get("/api/reports/visual?month=2026-06", headers=headers)
+
+    assert summary_response.status_code == 200
+    assert summary_response.json()["expense_count"] == 2
+    assert summary_response.json()["total_expense"] == "500.00"
+
+    assert visual_response.status_code == 200
+    visual_data = visual_response.json()
+    assert visual_data["period"]["start_date"] == "2026-06-01"
+    assert visual_data["period"]["end_date"] == "2026-06-30"
+    assert visual_data["total_expense"] == "500.00"
+
+
+def test_report_custom_period_includes_both_boundary_dates(client):
+    token = _register_and_login(client, "Amanda Reis", "amanda@example.com")
+    headers = _auth_headers(token)
+
+    for transaction_date in ("2026-06-09", "2026-06-10", "2026-06-20", "2026-06-21"):
+        client.post(
+            "/api/transactions/",
+            headers=headers,
+            json={
+                "type": "expense",
+                "amount": "10.00",
+                "date": transaction_date,
+                "emotion": "calma",
+            },
+        )
+
+    response = client.get(
+        "/api/reports/summary?start_date=2026-06-10&end_date=2026-06-20",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["expense_count"] == 2
+    assert response.json()["total_expense"] == "20.00"
+
+
+def test_report_accepts_maximum_supported_end_date(client):
+    token = _register_and_login(client, "Alice Vale", "alice@example.com")
+    headers = _auth_headers(token)
+    client.post(
+        "/api/transactions/",
+        headers=headers,
+        json={
+            "type": "expense",
+            "amount": "10.00",
+            "date": "9999-12-31",
+            "emotion": "calma",
+        },
+    )
+
+    response = client.get("/api/reports/summary?end_date=9999-12-31", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["total_expense"] == "10.00"
+
+
+@pytest.mark.parametrize(
+    ("query", "expected_detail"),
+    [
+        (
+            "month=2026-06&start_date=2026-06-01",
+            "Use either month or start_date/end_date, not both.",
+        ),
+        (
+            "start_date=2026-06-20&end_date=2026-06-10",
+            "start_date must be before or equal to end_date.",
+        ),
+        (
+            "month=2026-13",
+            "Month must use YYYY-MM format.",
+        ),
+    ],
+)
+def test_report_rejects_ambiguous_or_invalid_periods(client, query, expected_detail):
+    token = _register_and_login(client, "Bruno Nunes", f"bruno-{query[:4]}@example.com")
+    headers = _auth_headers(token)
+
+    response = client.get(f"/api/reports/visual?{query}", headers=headers)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == expected_detail
+
+
+def test_report_category_filter_only_includes_selected_accessible_category(client):
+    first_token = _register_and_login(client, "Carla Melo", "carla@example.com")
+    second_token = _register_and_login(client, "Diego Vaz", "diego@example.com")
+    first_headers = _auth_headers(first_token)
+    second_headers = _auth_headers(second_token)
+    alimentacao = _get_category_by_name(client, first_headers, "Alimentacao")
+    lazer = _get_category_by_name(client, first_headers, "Lazer")
+    private_category_id = _create_expense_category(client, second_headers, "Privada")
+
+    for category_id, amount, emotion in (
+        (alimentacao["id"], "100.00", "calma"),
+        (lazer["id"], "300.00", "ansiedade"),
+    ):
+        client.post(
+            "/api/transactions/",
+            headers=first_headers,
+            json={
+                "category_id": category_id,
+                "type": "expense",
+                "amount": amount,
+                "date": "2026-06-06",
+                "emotion": emotion,
+            },
+        )
+
+    filtered_response = client.get(
+        f"/api/reports/visual?category_id={alimentacao['id']}",
+        headers=first_headers,
+    )
+    inaccessible_response = client.get(
+        f"/api/reports/visual?category_id={private_category_id}",
+        headers=first_headers,
+    )
+
+    assert filtered_response.status_code == 200
+    filtered_data = filtered_response.json()
+    assert filtered_data["total_expense"] == "100.00"
+    assert [item["label"] for item in filtered_data["category_distribution"]["pie_items"]] == [
+        "Alimentacao"
+    ]
+    assert [item["key"] for item in filtered_data["emotion_distribution"]["pie_items"]] == [
+        "calma"
+    ]
+
+    assert inaccessible_response.status_code == 404
+    assert inaccessible_response.json()["detail"] == "Expense category not found."
+
+
+def test_emotion_insight_requires_five_specified_expenses_in_period(client):
+    token = _register_and_login(client, "Eduarda Lima", "eduarda@example.com")
+    headers = _auth_headers(token)
+
+    for emotion, count in (("ansiedade", 4), ("felicidade", 5), ("not_specified", 5)):
+        for _ in range(count):
+            client.post(
+                "/api/transactions/",
+                headers=headers,
+                json={
+                    "type": "expense",
+                    "amount": "10.00",
+                    "date": "2026-06-06",
+                    "emotion": emotion,
+                },
+            )
+
+    response = client.get("/api/reports/by-emotion?month=2026-06", headers=headers)
+    unbounded_response = client.get("/api/reports/by-emotion", headers=headers)
+
+    assert response.status_code == 200
+    report = response.json()
+    ansiedade = _find_emotion_item(report, "ansiedade")
+    felicidade = _find_emotion_item(report, "felicidade")
+    not_specified = _find_emotion_item(report, "not_specified")
+    assert ansiedade["insight_eligible"] is False
+    assert felicidade["insight_eligible"] is True
+    assert felicidade["average_amount"] == "10.00"
+    assert not_specified["insight_eligible"] is False
+    assert (
+        _find_emotion_item(unbounded_response.json(), "felicidade")["insight_eligible"]
+        is False
+    )
+
+
+def test_visual_report_groups_tiny_items_but_keeps_them_in_text(client):
+    token = _register_and_login(client, "Fabio Costa", "fabio@example.com")
+    headers = _auth_headers(token)
+    large_category_id = _create_expense_category(client, headers, "Gasto principal")
+    tiny_category_id = _create_expense_category(client, headers, "Gasto infimo")
+
+    for category_id, amount, emotion in (
+        (large_category_id, "999.00", "calma"),
+        (tiny_category_id, "1.00", "tedio"),
+    ):
+        client.post(
+            "/api/transactions/",
+            headers=headers,
+            json={
+                "category_id": category_id,
+                "type": "expense",
+                "amount": amount,
+                "date": "2026-06-06",
+                "emotion": emotion,
+            },
+        )
+
+    response = client.get("/api/reports/visual?month=2026-06", headers=headers)
+
+    assert response.status_code == 200
+    category_section = response.json()["category_distribution"]
+    assert [item["label"] for item in category_section["pie_items"]] == [
+        "Gasto principal",
+        "Outros",
+    ]
+    assert category_section["pie_items"][1]["is_aggregated"] is True
+    assert category_section["pie_items"][1]["total_amount"] == "1.00"
+    assert [item["label"] for item in category_section["textual_items"]] == ["Gasto infimo"]
+
+
+def test_visual_report_keeps_item_at_exactly_one_percent_in_charts(client):
+    token = _register_and_login(client, "Helena Paz", "helena@example.com")
+    headers = _auth_headers(token)
+    large_category_id = _create_expense_category(client, headers, "Principal")
+    threshold_category_id = _create_expense_category(client, headers, "Exatamente um por cento")
+
+    for category_id, amount in (
+        (large_category_id, "99.00"),
+        (threshold_category_id, "1.00"),
+    ):
+        client.post(
+            "/api/transactions/",
+            headers=headers,
+            json={
+                "category_id": category_id,
+                "type": "expense",
+                "amount": amount,
+                "date": "2026-06-06",
+                "emotion": "calma",
+            },
+        )
+
+    response = client.get("/api/reports/visual?month=2026-06", headers=headers)
+
+    assert response.status_code == 200
+    category_section = response.json()["category_distribution"]
+    assert [item["label"] for item in category_section["pie_items"]] == [
+        "Principal",
+        "Exatamente um por cento",
+    ]
+    assert category_section["textual_items"] == []
+
+
+def test_visual_report_limits_chart_to_ten_items_and_groups_the_remainder(client):
+    token = _register_and_login(client, "Gabriela Luz", "gabriela@example.com")
+    headers = _auth_headers(token)
+
+    for index in range(11):
+        category_id = _create_expense_category(client, headers, f"Categoria {index:02d}")
+        client.post(
+            "/api/transactions/",
+            headers=headers,
+            json={
+                "category_id": category_id,
+                "type": "expense",
+                "amount": "10.00",
+                "date": "2026-06-06",
+                "emotion": "calma",
+            },
+        )
+
+    response = client.get("/api/reports/visual?month=2026-06", headers=headers)
+
+    assert response.status_code == 200
+    category_section = response.json()["category_distribution"]
+    assert len(category_section["pie_items"]) == 10
+    assert category_section["pie_items"][-1]["label"] == "Outros"
+    assert category_section["pie_items"][-1]["transaction_count"] == 2
+    assert len(category_section["bar_items"]) == 10
+    assert all(item["label"] != "Outros" for item in category_section["bar_items"])
+    assert len(category_section["textual_items"]) == 1

@@ -13,6 +13,9 @@ from utils.month_utils import parse_month_label
 
 
 GLOBAL_BUDGET_NAME = "Limite mensal geral"
+INCONSISTENT_LIMITS_MESSAGE = (
+    "The sum of category limits cannot exceed the global limit."
+)
 
 
 class BudgetServiceError(Exception):
@@ -74,6 +77,16 @@ class BudgetService:
         payload: BudgetSettingsUpdate,
         month: str | None = None,
     ) -> BudgetSettingsResponse:
+        seen_category_ids: set[int] = set()
+        for item in payload.category_limits:
+            if item.category_id in seen_category_ids:
+                raise BudgetServiceError("Duplicate category limit in request.", 400)
+            seen_category_ids.add(item.category_id)
+            self._resolve_budget_category(current_user, item.category_id)
+
+        proposed_limits = self._build_proposed_limits(current_user, payload)
+        self._validate_limit_relationship(proposed_limits)
+
         if "global_limit" in payload.model_fields_set:
             self._set_limit(
                 current_user=current_user,
@@ -81,13 +94,7 @@ class BudgetService:
                 amount=payload.global_limit,
             )
 
-        seen_category_ids: set[int] = set()
         for item in payload.category_limits:
-            if item.category_id in seen_category_ids:
-                raise BudgetServiceError("Duplicate category limit in request.", 400)
-            seen_category_ids.add(item.category_id)
-
-            self._resolve_budget_category(current_user, item.category_id)
             self._set_limit(
                 current_user=current_user,
                 category_id=item.category_id,
@@ -96,6 +103,62 @@ class BudgetService:
 
         self.db.commit()
         return self.get_budget_settings(current_user, month)
+
+    def _build_proposed_limits(
+        self,
+        current_user: User,
+        payload: BudgetSettingsUpdate,
+    ) -> dict[int | None, Decimal]:
+        proposed_limits = {
+            limit.category_id: limit.amount
+            for limit in self._list_limits(current_user)
+        }
+
+        if "global_limit" in payload.model_fields_set:
+            self._apply_proposed_limit(
+                proposed_limits,
+                category_id=None,
+                amount=payload.global_limit,
+            )
+
+        for item in payload.category_limits:
+            self._apply_proposed_limit(
+                proposed_limits,
+                category_id=item.category_id,
+                amount=item.amount,
+            )
+
+        return proposed_limits
+
+    @staticmethod
+    def _apply_proposed_limit(
+        proposed_limits: dict[int | None, Decimal],
+        category_id: int | None,
+        amount: Decimal | None,
+    ) -> None:
+        if amount is None:
+            proposed_limits.pop(category_id, None)
+            return
+        proposed_limits[category_id] = amount
+
+    @staticmethod
+    def _validate_limit_relationship(
+        proposed_limits: dict[int | None, Decimal],
+    ) -> None:
+        global_limit = proposed_limits.get(None)
+        if global_limit is None:
+            return
+
+        category_total = sum(
+            (
+                amount
+                for category_id, amount in proposed_limits.items()
+                if category_id is not None
+            ),
+            Decimal("0.00"),
+        )
+        if category_total > global_limit:
+            raise BudgetServiceError(INCONSISTENT_LIMITS_MESSAGE, 400)
 
     def _set_limit(
         self,

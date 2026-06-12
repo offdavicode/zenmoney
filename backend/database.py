@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, event, update
+from sqlalchemy import create_engine, event, inspect, or_, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -49,12 +49,15 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def create_db_and_tables() -> None:
-    from models import budget_alert, budget_limit, category, recurrence, revoked_token, transaction, user  # noqa: F401
+    from models import budget_alert, budget_limit, category, recurrence, revoked_token, survival_setting, transaction, user  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_transaction_is_recurring_column()
     with SessionLocal() as db:
         seed_default_categories(db)
         align_stored_emotions(db)
+        align_stored_recurrence_schedules(db)
+        align_stored_recurring_transactions(db)
 
 
 def seed_default_categories(db: Session) -> None:
@@ -92,4 +95,56 @@ def align_stored_emotions(db: Session) -> None:
             )
             .values(emotion=DEFAULT_EMOTION)
         )
+    db.commit()
+
+
+def align_stored_recurrence_schedules(db: Session) -> None:
+    from sqlalchemy import select
+
+    from models.recurrence import Recurrence
+
+    invalid_recurrences = db.scalars(
+        select(Recurrence).where(
+            or_(
+                Recurrence.day_of_month.is_(None),
+                Recurrence.day_of_month < 1,
+                Recurrence.day_of_month > 31,
+                Recurrence.frequency != "monthly",
+            )
+        )
+    )
+    for recurrence in invalid_recurrences:
+        if recurrence.day_of_month is None or not 1 <= recurrence.day_of_month <= 31:
+            recurrence.day_of_month = recurrence.start_date.day
+        recurrence.frequency = "monthly"
+
+    db.commit()
+
+
+def ensure_transaction_is_recurring_column() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+
+    transaction_columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("transactions")
+    }
+    if "is_recurring" in transaction_columns:
+        return
+
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "ALTER TABLE transactions "
+            "ADD COLUMN is_recurring BOOLEAN NOT NULL DEFAULT 0"
+        )
+
+
+def align_stored_recurring_transactions(db: Session) -> None:
+    from models.transaction import Transaction
+
+    db.execute(
+        update(Transaction)
+        .where(Transaction.recurrence_id.is_not(None))
+        .values(is_recurring=True)
+    )
     db.commit()

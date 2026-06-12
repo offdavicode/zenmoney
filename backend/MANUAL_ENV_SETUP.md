@@ -42,6 +42,17 @@ Abra o arquivo `.env` e ajuste os valores se quiser, principalmente:
 - `ACCESS_TOKEN_EXPIRE_MINUTES`
 - `MAX_LOGIN_ATTEMPTS`
 - `ACCOUNT_LOCK_MINUTES`
+- `FRONTEND_ORIGINS`
+
+`FRONTEND_ORIGINS` recebe uma ou mais origens separadas por virgula:
+
+```env
+FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+Quando o frontend usar outro dominio ou porta, substitua ou acrescente a origem
+nessa lista. Nao use caminhos como `/login` nem a URL da API; uma origem possui
+somente protocolo, host e porta.
 
 ## 4. Carregar o `.env` manualmente na sessao atual
 
@@ -70,6 +81,7 @@ Exemplos:
 echo $env:APP_NAME
 echo $env:DATABASE_URL
 echo $env:SECRET_KEY
+echo $env:FRONTEND_ORIGINS
 ```
 
 Se o carregamento deu certo, o terminal vai mostrar os valores do `.env`.

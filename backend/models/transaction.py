@@ -2,10 +2,11 @@ from datetime import date as date_type
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
+from utils.date_utils import utc_to_brasilia
 
 
 def utc_now() -> datetime:
@@ -27,6 +28,7 @@ class Transaction(Base):
         nullable=True,
         index=True,
     )
+    is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     date: Mapped[date_type] = mapped_column(Date, nullable=False, index=True)
@@ -43,3 +45,7 @@ class Transaction(Base):
     user = relationship("User", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
     recurrence = relationship("Recurrence", back_populates="transactions")
+
+    @property
+    def registered_at(self) -> datetime:
+        return utc_to_brasilia(self.created_at)

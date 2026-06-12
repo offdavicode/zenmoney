@@ -1,4 +1,5 @@
 from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -42,9 +43,11 @@ class TransactionResponse(BaseModel):
     user_id: int
     category_id: int | None = None
     recurrence_id: int | None = None
+    is_recurring: bool
     type: CategoryType
     amount: Decimal
     date: date_type
+    registered_at: datetime
     description: str | None = None
     emotion: EmotionType
 

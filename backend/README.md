@@ -1,6 +1,7 @@
 # ZenMoney Backend v2
 
-Backend reorganizado seguindo a arquitetura MVC em camadas descrita em `ARCHITECTURE_v2`.
+Backend reorganizado seguindo a arquitetura MVC em camadas descrita em
+`../ARCHITECTURE_v2.md`.
 
 ## Estrutura
 
@@ -29,5 +30,4 @@ As dependencias estao listadas em `requirements.txt`.
 
 ## Observacao desta versao
 
-Esta etapa entrega a base estrutural da arquitetura v2 e os stubs das features. As regras de negocio vao sendo preenchidas a medida que o projeto avançar.
-
+Esta etapa entrega a base estrutural da arquitetura v2 e os stubs das features. As regras de negocio vao sendo preenchidas na ordem que voce definir.

@@ -33,3 +33,9 @@ class User(Base):
     revoked_tokens = relationship("RevokedToken", back_populates="user", cascade="all, delete-orphan")
     budget_limits = relationship("BudgetLimit", back_populates="user", cascade="all, delete-orphan")
     budget_alerts = relationship("BudgetAlert", back_populates="user", cascade="all, delete-orphan")
+    survival_setting = relationship(
+        "SurvivalSetting",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )

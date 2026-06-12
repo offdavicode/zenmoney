@@ -3,6 +3,7 @@ from models.budget_limit import BudgetLimit
 from models.category import Category
 from models.recurrence import Recurrence
 from models.revoked_token import RevokedToken
+from models.survival_setting import SurvivalSetting
 from models.transaction import Transaction
 from models.user import User
 
@@ -14,4 +15,5 @@ __all__ = [
     "RevokedToken",
     "BudgetLimit",
     "BudgetAlert",
+    "SurvivalSetting",
 ]

@@ -58,9 +58,6 @@ class AlertService:
         self.db.commit()
         return BudgetAlertCheckResponse(month=budget_status.month, alert=highest_alert)
 
-    def evaluate_survival_mode(self, user_id: int):
-        raise NotImplementedError("Survival mode has not been implemented yet.")
-
     def _process_limit_status(
         self,
         current_user: User,

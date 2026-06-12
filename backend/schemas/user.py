@@ -87,3 +87,11 @@ class LogoutResponse(BaseModel):
 
 class PasswordChangeResponse(BaseModel):
     message: str
+
+
+class AccountDeleteRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+
+
+class AccountDeleteResponse(BaseModel):
+    message: str

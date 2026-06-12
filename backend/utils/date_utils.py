@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 
@@ -15,6 +15,11 @@ def to_brasilia(dt: datetime) -> datetime:
     return dt.astimezone(BRASILIA_TZ)
 
 
+def utc_to_brasilia(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BRASILIA_TZ)
+
+
 def format_date_br(dt: datetime) -> str:
     return to_brasilia(dt).strftime("%d/%m/%Y")
-

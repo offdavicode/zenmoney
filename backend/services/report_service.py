@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -9,28 +11,59 @@ from models.user import User
 from schemas.report import (
     CategoryReportItem,
     EmotionReportItem,
+    ReportPeriod,
     SpendingTriggerReportItem,
     SummaryReport,
+    VisualReportItem,
+    VisualReportResponse,
+    VisualReportSection,
 )
 from utils.emotion_rules import DEFAULT_EMOTION, EMOTION_LABELS, VALID_EMOTIONS, normalize_emotion
+from utils.month_utils import parse_month_label
 
 
 UNCATEGORIZED_CATEGORY_NAME = "Sem categoria"
+OTHER_ITEMS_LABEL = "Outros"
 CENTS = Decimal("0.01")
+MINIMUM_INSIGHT_TRANSACTIONS = 5
+MINIMUM_CHART_PERCENTAGE = 1.0
+MAX_CHART_ITEMS = 10
+
+
+class ReportServiceError(Exception):
+    def __init__(self, message: str, status_code: int) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
+@dataclass(frozen=True)
+class ReportFilters:
+    start_date: date | None
+    end_date: date | None
+    category_id: int | None
 
 
 class ReportService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_summary(self, current_user: User) -> SummaryReport:
+    def get_summary(
+        self,
+        current_user: User,
+        month: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> SummaryReport:
+        filters = self._resolve_filters(current_user, month, start_date, end_date)
+        conditions = self._transaction_conditions(current_user, filters)
         totals_statement = (
             select(
                 Transaction.type,
                 func.count(Transaction.id).label("transaction_count"),
                 func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
             )
-            .where(Transaction.user_id == current_user.id)
+            .where(*conditions)
             .group_by(Transaction.type)
         )
 
@@ -60,10 +93,7 @@ class ReportService:
                 func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
             )
             .outerjoin(Category, Transaction.category_id == Category.id)
-            .where(
-                Transaction.user_id == current_user.id,
-                Transaction.type == "expense",
-            )
+            .where(*conditions, Transaction.type == "expense")
             .group_by(Transaction.category_id, Category.is_essential)
         )
 
@@ -102,7 +132,15 @@ class ReportService:
             uncategorized_expense=uncategorized_expense,
         )
 
-    def get_by_emotion(self, current_user: User) -> list[EmotionReportItem]:
+    def get_by_emotion(
+        self,
+        current_user: User,
+        month: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        category_id: int | None = None,
+    ) -> list[EmotionReportItem]:
+        filters = self._resolve_filters(current_user, month, start_date, end_date, category_id)
         statement = (
             select(
                 Transaction.emotion,
@@ -110,7 +148,7 @@ class ReportService:
                 func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
             )
             .where(
-                Transaction.user_id == current_user.id,
+                *self._transaction_conditions(current_user, filters),
                 Transaction.type == "expense",
             )
             .group_by(Transaction.emotion)
@@ -138,6 +176,7 @@ class ReportService:
             for data in totals_by_emotion.values()
             if isinstance(data["total_amount"], Decimal)
         )
+        insight_period_is_valid = self._is_single_month_period(filters)
 
         report_items: list[EmotionReportItem] = []
         for emotion in VALID_EMOTIONS:
@@ -148,9 +187,9 @@ class ReportService:
             if not isinstance(total_amount, Decimal) or not isinstance(transaction_count, int):
                 continue
 
-            percentage = 0.0
-            if grand_total > 0:
-                percentage = round(float((total_amount / grand_total) * Decimal("100")), 2)
+            average_amount = Decimal("0.00")
+            if transaction_count > 0:
+                average_amount = (total_amount / transaction_count).quantize(CENTS)
 
             report_items.append(
                 EmotionReportItem(
@@ -158,14 +197,28 @@ class ReportService:
                     label=EMOTION_LABELS[emotion],
                     transaction_count=transaction_count,
                     total_amount=total_amount,
-                    percentage=percentage,
+                    average_amount=average_amount,
+                    percentage=self._calculate_percentage(total_amount, grand_total),
+                    insight_eligible=(
+                        emotion != DEFAULT_EMOTION
+                        and insight_period_is_valid
+                        and transaction_count >= MINIMUM_INSIGHT_TRANSACTIONS
+                    ),
                 )
             )
 
         return report_items
 
-    def get_by_category(self, current_user: User) -> list[CategoryReportItem]:
-        category_items = self._build_category_report_base(current_user)
+    def get_by_category(
+        self,
+        current_user: User,
+        month: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        category_id: int | None = None,
+    ) -> list[CategoryReportItem]:
+        filters = self._resolve_filters(current_user, month, start_date, end_date, category_id)
+        category_items = self._build_category_report_base(current_user, category_id)
 
         statement = (
             select(
@@ -174,19 +227,19 @@ class ReportService:
                 func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
             )
             .where(
-                Transaction.user_id == current_user.id,
+                *self._transaction_conditions(current_user, filters),
                 Transaction.type == "expense",
             )
             .group_by(Transaction.category_id)
         )
 
         for row in self.db.execute(statement):
-            category_id = row.category_id
-            if category_id not in category_items:
-                category_id = None
+            safe_category_id = row.category_id if row.category_id in category_items else None
+            if safe_category_id not in category_items:
+                continue
 
-            item = category_items[category_id]
-            category_items[category_id] = item.model_copy(
+            item = category_items[safe_category_id]
+            category_items[safe_category_id] = item.model_copy(
                 update={
                     "transaction_count": item.transaction_count + row.transaction_count,
                     "total_amount": item.total_amount + (row.total_amount or Decimal("0.00")),
@@ -194,16 +247,12 @@ class ReportService:
             )
 
         grand_total = sum(item.total_amount for item in category_items.values())
-
-        report_items: list[CategoryReportItem] = []
-        for item in category_items.values():
-            report_items.append(
-                item.model_copy(
-                    update={
-                        "percentage": self._calculate_percentage(item.total_amount, grand_total)
-                    }
-                )
+        report_items = [
+            item.model_copy(
+                update={"percentage": self._calculate_percentage(item.total_amount, grand_total)}
             )
+            for item in category_items.values()
+        ]
 
         return sorted(
             report_items,
@@ -214,7 +263,67 @@ class ReportService:
             ),
         )
 
-    def get_spending_triggers(self, current_user: User) -> list[SpendingTriggerReportItem]:
+    def get_visual_report(
+        self,
+        current_user: User,
+        month: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        category_id: int | None = None,
+    ) -> VisualReportResponse:
+        filters = self._resolve_filters(current_user, month, start_date, end_date, category_id)
+        category_items = self.get_by_category(
+            current_user, month, start_date, end_date, category_id
+        )
+        emotion_items = self.get_by_emotion(
+            current_user, month, start_date, end_date, category_id
+        )
+        total_expense = sum((item.total_amount for item in category_items), Decimal("0.00"))
+
+        visual_categories = [
+            VisualReportItem(
+                key=str(item.category_id) if item.category_id is not None else "uncategorized",
+                label=item.category_name,
+                transaction_count=item.transaction_count,
+                total_amount=item.total_amount,
+                percentage=item.percentage,
+            )
+            for item in category_items
+            if item.transaction_count > 0
+        ]
+        visual_emotions = [
+            VisualReportItem(
+                key=item.emotion,
+                label=item.label,
+                transaction_count=item.transaction_count,
+                total_amount=item.total_amount,
+                percentage=item.percentage,
+                insight_eligible=item.insight_eligible,
+            )
+            for item in emotion_items
+            if item.transaction_count > 0
+        ]
+
+        return VisualReportResponse(
+            period=ReportPeriod(
+                start_date=filters.start_date,
+                end_date=filters.end_date,
+                category_id=filters.category_id,
+            ),
+            total_expense=total_expense,
+            category_distribution=self._build_visual_section(visual_categories),
+            emotion_distribution=self._build_visual_section(visual_emotions),
+        )
+
+    def get_spending_triggers(
+        self,
+        current_user: User,
+        month: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        category_id: int | None = None,
+    ) -> list[SpendingTriggerReportItem]:
+        filters = self._resolve_filters(current_user, month, start_date, end_date, category_id)
         categories_by_id = {
             category.id: category
             for category in self._list_accessible_expense_categories(current_user)
@@ -228,7 +337,7 @@ class ReportService:
                 func.coalesce(func.sum(Transaction.amount), 0).label("total_amount"),
             )
             .where(
-                Transaction.user_id == current_user.id,
+                *self._transaction_conditions(current_user, filters),
                 Transaction.type == "expense",
             )
             .group_by(Transaction.emotion, Transaction.category_id)
@@ -241,8 +350,7 @@ class ReportService:
             except ValueError:
                 emotion = DEFAULT_EMOTION
 
-            category_id = row.category_id
-            category = categories_by_id.get(category_id) if category_id is not None else None
+            category = categories_by_id.get(row.category_id) if row.category_id is not None else None
             category_name = category.name if category is not None else UNCATEGORIZED_CATEGORY_NAME
             safe_category_id = category.id if category is not None else None
             key = (emotion, safe_category_id)
@@ -268,14 +376,14 @@ class ReportService:
         report_items: list[SpendingTriggerReportItem] = []
         for data in raw_items.values():
             emotion = data["emotion"]
-            category_id = data["category_id"]
+            category_id_value = data["category_id"]
             category_name = data["category_name"]
             transaction_count = data["transaction_count"]
             total_amount = data["total_amount"]
 
             if (
                 not isinstance(emotion, str)
-                or not isinstance(category_id, int | type(None))
+                or not isinstance(category_id_value, int | type(None))
                 or not isinstance(category_name, str)
                 or not isinstance(transaction_count, int)
                 or not isinstance(total_amount, Decimal)
@@ -286,11 +394,12 @@ class ReportService:
             if transaction_count > 0:
                 average_amount = (total_amount / transaction_count).quantize(CENTS)
 
+            normalized_emotion = normalize_emotion(emotion)
             report_items.append(
                 SpendingTriggerReportItem(
-                    emotion=normalize_emotion(emotion),
-                    emotion_label=EMOTION_LABELS[normalize_emotion(emotion)],
-                    category_id=category_id,
+                    emotion=normalized_emotion,
+                    emotion_label=EMOTION_LABELS[normalized_emotion],
+                    category_id=category_id_value,
                     category_name=category_name,
                     transaction_count=transaction_count,
                     total_amount=total_amount,
@@ -304,9 +413,71 @@ class ReportService:
             key=lambda item: (-item.total_amount, -item.transaction_count, item.category_name, item.emotion),
         )
 
-    def _build_category_report_base(self, current_user: User) -> dict[int | None, CategoryReportItem]:
-        category_items: dict[int | None, CategoryReportItem] = {
-            None: CategoryReportItem(
+    def _resolve_filters(
+        self,
+        current_user: User,
+        month: str | None,
+        start_date: date | None,
+        end_date: date | None,
+        category_id: int | None = None,
+    ) -> ReportFilters:
+        if month is not None and (start_date is not None or end_date is not None):
+            raise ReportServiceError(
+                "Use either month or start_date/end_date, not both.",
+                400,
+            )
+        if start_date is not None and end_date is not None and start_date > end_date:
+            raise ReportServiceError("start_date must be before or equal to end_date.", 400)
+
+        resolved_start = start_date
+        resolved_end = end_date
+
+        if month is not None:
+            try:
+                _, resolved_start, next_month_start = parse_month_label(month)
+            except ValueError as exc:
+                raise ReportServiceError(str(exc), 400) from exc
+            resolved_end = next_month_start - timedelta(days=1)
+
+        if category_id is not None:
+            self._resolve_expense_category(current_user, category_id)
+
+        return ReportFilters(
+            start_date=resolved_start,
+            end_date=resolved_end,
+            category_id=category_id,
+        )
+
+    @staticmethod
+    def _transaction_conditions(current_user: User, filters: ReportFilters) -> list:
+        conditions = [Transaction.user_id == current_user.id]
+        if filters.start_date is not None:
+            conditions.append(Transaction.date >= filters.start_date)
+        if filters.end_date is not None:
+            conditions.append(Transaction.date <= filters.end_date)
+        if filters.category_id is not None:
+            conditions.append(Transaction.category_id == filters.category_id)
+        return conditions
+
+    def _resolve_expense_category(self, current_user: User, category_id: int) -> Category:
+        statement = select(Category).where(
+            Category.id == category_id,
+            Category.type == "expense",
+            (Category.user_id == current_user.id) | (Category.user_id.is_(None)),
+        )
+        category = self.db.scalar(statement)
+        if category is None:
+            raise ReportServiceError("Expense category not found.", 404)
+        return category
+
+    def _build_category_report_base(
+        self,
+        current_user: User,
+        category_id: int | None = None,
+    ) -> dict[int | None, CategoryReportItem]:
+        category_items: dict[int | None, CategoryReportItem] = {}
+        if category_id is None:
+            category_items[None] = CategoryReportItem(
                 category_id=None,
                 category_name=UNCATEGORIZED_CATEGORY_NAME,
                 is_default=False,
@@ -315,9 +486,10 @@ class ReportService:
                 total_amount=Decimal("0.00"),
                 percentage=0.0,
             )
-        }
 
         for category in self._list_accessible_expense_categories(current_user):
+            if category_id is not None and category.id != category_id:
+                continue
             category_items[category.id] = CategoryReportItem(
                 category_id=category.id,
                 category_name=category.name,
@@ -340,6 +512,66 @@ class ReportService:
             .order_by(Category.is_default.desc(), Category.name.asc())
         )
         return list(self.db.scalars(statement))
+
+    def _build_visual_section(self, items: list[VisualReportItem]) -> VisualReportSection:
+        sorted_items = sorted(items, key=lambda item: (-item.total_amount, item.label))
+        relevant_items = [
+            item for item in sorted_items if item.percentage >= MINIMUM_CHART_PERCENTAGE
+        ]
+        tiny_items = [
+            item for item in sorted_items if item.percentage < MINIMUM_CHART_PERCENTAGE
+        ]
+
+        bar_items = relevant_items[:MAX_CHART_ITEMS]
+        bar_item_keys = {item.key for item in bar_items}
+        textual_items = [
+            item for item in sorted_items if item.key not in bar_item_keys
+        ]
+
+        pie_items = relevant_items
+        aggregated_items = tiny_items
+        if len(relevant_items) > MAX_CHART_ITEMS:
+            pie_items = relevant_items[: MAX_CHART_ITEMS - 1]
+            aggregated_items = tiny_items + relevant_items[MAX_CHART_ITEMS - 1 :]
+        elif tiny_items and len(relevant_items) == MAX_CHART_ITEMS:
+            pie_items = relevant_items[: MAX_CHART_ITEMS - 1]
+            aggregated_items = tiny_items + relevant_items[MAX_CHART_ITEMS - 1 :]
+
+        if aggregated_items:
+            total_amount = sum((item.total_amount for item in sorted_items), Decimal("0.00"))
+            aggregated_amount = sum(
+                (item.total_amount for item in aggregated_items),
+                Decimal("0.00"),
+            )
+            pie_items.append(
+                VisualReportItem(
+                    key="others",
+                    label=OTHER_ITEMS_LABEL,
+                    transaction_count=sum(item.transaction_count for item in aggregated_items),
+                    total_amount=aggregated_amount,
+                    percentage=self._calculate_percentage(
+                        aggregated_amount,
+                        total_amount,
+                    ),
+                    is_aggregated=True,
+                    insight_eligible=False,
+                )
+            )
+
+        return VisualReportSection(
+            pie_items=pie_items,
+            bar_items=bar_items,
+            textual_items=sorted(textual_items, key=lambda item: (-item.total_amount, item.label)),
+        )
+
+    @staticmethod
+    def _is_single_month_period(filters: ReportFilters) -> bool:
+        if filters.start_date is None or filters.end_date is None:
+            return False
+        return (
+            filters.start_date.year == filters.end_date.year
+            and filters.start_date.month == filters.end_date.month
+        )
 
     @staticmethod
     def _calculate_percentage(total_amount: Decimal, grand_total: Decimal) -> float:

@@ -26,7 +26,7 @@ class Recurrence(Base):
     description: Mapped[str | None] = mapped_column(String(256), nullable=True)
     emotion: Mapped[str] = mapped_column(String(50), nullable=False, default="not_specified")
     frequency: Mapped[str] = mapped_column(String(20), nullable=False, default="monthly")
-    day_of_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    day_of_month: Mapped[int] = mapped_column(Integer, nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     next_run_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)

@@ -241,6 +241,231 @@ def test_budget_rejects_invalid_values_and_categories(client):
     )
 
 
+def test_category_limits_can_exist_without_global_limit(client):
+    token = _register_and_login(client, "Rita Lima", "rita@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "category_limits": [
+                {
+                    "category_id": alimentacao["id"],
+                    "amount": "300.00",
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["global_limit"] is None
+    assert _find_category_limit(data, "Alimentacao")["limit_amount"] == "300.00"
+
+
+def test_budget_rejects_new_global_below_existing_category_sum(client):
+    token = _register_and_login(client, "Roberta Luz", "roberta@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    lazer = _get_category_by_name(client, headers, "Lazer")
+    client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+                {"category_id": lazer["id"], "amount": "200.00"},
+            ],
+        },
+    )
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={"global_limit": "499.99"},
+    )
+    state_response = client.get("/api/settings/budget?month=2026-06", headers=headers)
+
+    assert response.status_code == 400
+    assert state_response.json()["global_limit"] is None
+    assert len(state_response.json()["category_limits"]) == 2
+
+
+def test_category_limit_sum_can_equal_global_limit(client):
+    token = _register_and_login(client, "Sara Melo", "sara@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    lazer = _get_category_by_name(client, headers, "Lazer")
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "500.00",
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+                {"category_id": lazer["id"], "amount": "200.00"},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["global_limit"]["limit_amount"] == "500.00"
+
+
+def test_budget_rejects_category_sum_above_global_without_partial_update(client):
+    token = _register_and_login(client, "Sergio Luz", "sergio@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    lazer = _get_category_by_name(client, headers, "Lazer")
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "500.00",
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+                {"category_id": lazer["id"], "amount": "250.01"},
+            ],
+        },
+    )
+    state_response = client.get("/api/settings/budget?month=2026-06", headers=headers)
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"]
+        == "The sum of category limits cannot exceed the global limit."
+    )
+    assert state_response.json()["global_limit"] is None
+    assert state_response.json()["category_limits"] == []
+
+
+def test_budget_rejects_lower_global_below_existing_category_sum(client):
+    token = _register_and_login(client, "Talita Neri", "talita@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    lazer = _get_category_by_name(client, headers, "Lazer")
+    client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "600.00",
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+                {"category_id": lazer["id"], "amount": "200.00"},
+            ],
+        },
+    )
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={"global_limit": "499.99"},
+    )
+    state_response = client.get("/api/settings/budget?month=2026-06", headers=headers)
+
+    assert response.status_code == 400
+    assert state_response.json()["global_limit"]["limit_amount"] == "600.00"
+
+
+def test_budget_rejects_category_increase_above_global_without_changing_existing_limit(client):
+    token = _register_and_login(client, "Tereza Lima", "tereza@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    lazer = _get_category_by_name(client, headers, "Lazer")
+    client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "500.00",
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+                {"category_id": lazer["id"], "amount": "150.00"},
+            ],
+        },
+    )
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "category_limits": [
+                {"category_id": lazer["id"], "amount": "250.00"},
+            ],
+        },
+    )
+    state_response = client.get("/api/settings/budget?month=2026-06", headers=headers)
+
+    assert response.status_code == 400
+    assert _find_category_limit(state_response.json(), "Lazer")["limit_amount"] == "150.00"
+
+
+def test_budget_allows_lower_global_when_same_request_removes_enough_category_limits(client):
+    token = _register_and_login(client, "Ursula Paz", "ursula@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    lazer = _get_category_by_name(client, headers, "Lazer")
+    client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "600.00",
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+                {"category_id": lazer["id"], "amount": "200.00"},
+            ],
+        },
+    )
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "300.00",
+            "category_limits": [
+                {"category_id": lazer["id"], "amount": None},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["global_limit"]["limit_amount"] == "300.00"
+    assert len(data["category_limits"]) == 1
+    assert _find_category_limit(data, "Alimentacao")["limit_amount"] == "300.00"
+
+
+def test_removing_global_limit_preserves_category_limits(client):
+    token = _register_and_login(client, "Valeria Reis", "valeria@example.com")
+    headers = _auth_headers(token)
+    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={
+            "global_limit": "500.00",
+            "category_limits": [
+                {"category_id": alimentacao["id"], "amount": "300.00"},
+            ],
+        },
+    )
+
+    response = client.put(
+        "/api/settings/budget?month=2026-06",
+        headers=headers,
+        json={"global_limit": None},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["global_limit"] is None
+    assert _find_category_limit(data, "Alimentacao")["limit_amount"] == "300.00"
+    assert data["alerts_enabled"] is True
+
+
 def test_budget_rejects_invalid_month(client):
     token = _register_and_login(client, "Quenia Rocha", "quenia@example.com")
     headers = _auth_headers(token)

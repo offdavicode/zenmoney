@@ -9,6 +9,20 @@ O escopo inclui:
 - consumo dos endpoints disponiveis
 - padrao de integracao para novas funcionalidades
 
+### Estado atual e limitacoes conhecidas
+
+- todos os endpoints documentados neste guia existem no backend
+- autenticacao, transacoes, recorrencias, categorias, emocoes, teto de gastos, alertas e agregacoes de relatorio possuem contratos utilizaveis
+- limites de gastos sao configuracoes recorrentes; o parametro `month` seleciona apenas o mes usado para calcular gastos e alertas
+- o RF08 possui filtros por mes ou intervalo de datas e um endpoint visual preparado para graficos; subcategorias ainda sao contabilizadas separadamente
+- o RF09 possui matriz emocao x categoria e analise completa de gatilhos emocionais
+- limites e relatorios por categoria contabilizam cada categoria separadamente; gastos de subcategorias ainda nao sao somados automaticamente ao pai
+- CORS permite por padrao `http://localhost:3000` e `http://127.0.0.1:3000`;
+  outras origens devem ser adicionadas a `FRONTEND_ORIGINS`
+- previsao de saldo do mes atual possui contrato utilizavel
+- exclusao definitiva da conta e horario de registro das transacoes possuem
+  contratos utilizaveis
+
 ---
 
 ## 1. Objetivo da integracao
@@ -37,25 +51,48 @@ O backend atual expõe estes endpoints:
 - `GET /api/settings/profile`
 - `PUT /api/settings/profile`
 - `PUT /api/settings/password`
+- `DELETE /api/settings/account`
 - `GET /api/settings/budget`
 - `PUT /api/settings/budget`
 - `GET /api/settings/budget/alert`
+- `GET /api/settings/survival-mode`
+- `PUT /api/settings/survival-mode`
 - `POST /api/transactions/`
 - `GET /api/transactions/`
 - `GET /api/transactions/{id}`
 - `PUT /api/transactions/{id}`
 - `DELETE /api/transactions/{id}`
 - `GET /api/transactions/emotions`
+- `POST /api/recurrences/`
+- `GET /api/recurrences/`
+- `GET /api/recurrences/{id}`
+- `PUT /api/recurrences/{id}`
+- `PATCH /api/recurrences/{id}/pause`
+- `PATCH /api/recurrences/{id}/resume`
+- `DELETE /api/recurrences/{id}`
+- `POST /api/recurrences/run-due`
 - `POST /api/categories/`
 - `GET /api/categories/`
 - `PUT /api/categories/{id}`
 - `DELETE /api/categories/{id}`
 - `GET /api/reports/by-emotion`
 - `GET /api/reports/by-category`
+- `GET /api/reports/visual`
 - `GET /api/reports/triggers`
+- `GET /api/reports/emotion-spending-analysis`
 - `GET /api/reports/summary`
+- `GET /api/reports/survival-mode`
+- `GET /api/reports/balance-prediction`
 
 ### Papel de cada endpoint
+
+Rotas de negocio exigem `Authorization: Bearer <token>`. As excecoes publicas atuais sao:
+
+- `GET /`
+- `GET /health`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/transactions/emotions`
 
 - `POST /api/auth/register`
   cria um novo usuario
@@ -78,6 +115,9 @@ O backend atual expõe estes endpoints:
 - `PUT /api/settings/password`
   troca a senha do usuario autenticado
 
+- `DELETE /api/settings/account`
+  exclui definitivamente a conta autenticada e seus registros apos confirmar a senha
+
 - `GET /api/settings/budget`
   consulta os limites mensais configurados e o uso atual do mes
 
@@ -86,6 +126,12 @@ O backend atual expõe estes endpoints:
 
 - `GET /api/settings/budget/alert`
   verifica se existe um novo alerta critico de teto de gastos para exibir
+
+- `GET /api/settings/survival-mode`
+  consulta a porcentagem configurada para ativar o modo sobrevivencia
+
+- `PUT /api/settings/survival-mode`
+  atualiza a porcentagem de ativacao entre 50% e 90%
 
 - `POST /api/transactions/`
   cria uma nova transacao para o usuario autenticado
@@ -105,6 +151,30 @@ O backend atual expõe estes endpoints:
 - `GET /api/transactions/emotions`
   lista as emocoes aceitas no cadastro de transacoes
 
+- `POST /api/recurrences/`
+  salva um novo agendamento mensal sem criar uma transacao imediatamente
+
+- `GET /api/recurrences/`
+  lista os agendamentos do usuario autenticado
+
+- `GET /api/recurrences/{id}`
+  busca um agendamento especifico do usuario autenticado
+
+- `PUT /api/recurrences/{id}`
+  edita apenas o agendamento e suas geracoes futuras
+
+- `PATCH /api/recurrences/{id}/pause`
+  pausa novas geracoes sem alterar transacoes existentes
+
+- `PATCH /api/recurrences/{id}/resume`
+  retoma o agendamento a partir da proxima data valida, sem preencher o periodo pausado
+
+- `DELETE /api/recurrences/{id}`
+  cancela o agendamento e preserva transacoes ja geradas
+
+- `POST /api/recurrences/run-due`
+  gera as ocorrencias vencidas ate a data atual sem duplicar registros
+
 - `POST /api/categories/`
   cria uma categoria propria do usuario autenticado
 
@@ -123,11 +193,23 @@ O backend atual expõe estes endpoints:
 - `GET /api/reports/by-category`
   agrupa gastos do usuario autenticado por categoria
 
+- `GET /api/reports/visual`
+  prepara distribuicoes para pizza, barras e listas textuais conforme as regras do RF08
+
 - `GET /api/reports/triggers`
-  cruza emocao e categoria para identificar possiveis gatilhos de gasto
+  cruza emocao e categoria para fornecer a matriz usada em graficos
+
+- `GET /api/reports/emotion-spending-analysis`
+  classifica gatilhos gerais e por categoria e retorna maiores gastos por emocao
 
 - `GET /api/reports/summary`
   gera o resumo financeiro geral do usuario autenticado
+
+- `GET /api/reports/survival-mode`
+  avalia o modo sobrevivencia no mes e retorna recomendacoes e destaques
+
+- `GET /api/reports/balance-prediction`
+  calcula o saldo liquido projetado para o final do mes atual
 
 ---
 
@@ -620,7 +702,46 @@ Observacao:
 
 ---
 
-## 13.7 Teto de gastos
+## 13.7 Exclusao definitiva da conta
+
+### Request
+
+`DELETE /api/settings/account`
+
+Header:
+
+```http
+Authorization: Bearer TOKEN_AQUI
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "current_password": "Senha@123"
+}
+```
+
+### Response
+
+```json
+{
+  "message": "Account and all associated data were permanently deleted."
+}
+```
+
+Observacoes:
+
+- a senha atual precisa estar correta
+- a operacao remove definitivamente os dados pertencentes ao usuario
+- categorias padrao globais e dados de outros usuarios sao preservados
+- apos o sucesso, o frontend deve apagar o token local e redirecionar para a tela publica
+- a interface deve pedir confirmacao clara antes de enviar a requisicao
+
+---
+
+## 13.8 Teto de gastos
 
 O backend permite configurar limites mensais:
 
@@ -628,6 +749,8 @@ O backend permite configurar limites mensais:
 - limites especificos por categoria de despesa
 
 Sem limite configurado, `alerts_enabled` fica `false`.
+
+Os valores configurados sao recorrentes e valem para qualquer mes consultado. O parametro `month=YYYY-MM` nao cria um limite exclusivo para aquele mes; ele define apenas quais despesas serao usadas no calculo de `spent_amount`, `remaining_amount`, `usage_percentage` e alertas.
 
 ### Consultar teto de gastos
 
@@ -710,14 +833,32 @@ Enviar `null` remove o limite informado:
 
 - `global_limit` e `amount` precisam ser maiores que zero quando informados
 - limite por categoria so aceita categoria de despesa
+- limite por categoria considera apenas despesas atribuidas diretamente aquela categoria; subcategorias sao calculadas separadamente
 - o frontend nao envia `user_id`
 - receitas nao entram no calculo de gasto
 - despesas de outros meses nao entram no calculo quando `month` e informado
 - `month` usa o formato `YYYY-MM`
+- omitir `global_limit` preserva o limite global atual
+- omitir uma categoria de `category_limits` preserva o limite atual daquela categoria
+- enviar `null` remove apenas o limite explicitamente informado
+- limites por categoria podem existir sem limite global
+- remover o limite global preserva os limites por categoria
+- quando existe limite global, a soma dos limites por categoria nao pode ultrapassa-lo
+- reduzir o limite global abaixo da soma final das categorias retorna erro `400`
+- alteracoes enviadas juntas sao validadas pelo estado final; portanto, e possivel reduzir o global e remover ou reduzir categorias na mesma requisicao
+- uma requisicao rejeitada nao aplica alteracoes parciais
+
+Exemplo de erro por configuracao incoerente:
+
+```json
+{
+  "detail": "The sum of category limits cannot exceed the global limit."
+}
+```
 
 ---
 
-## 13.8 Alertas criticos de teto de gastos
+## 13.9 Alertas criticos de teto de gastos
 
 O backend monitora limites de 10% em 10%.
 
@@ -793,7 +934,96 @@ Recomendacao:
 - receitas nao geram alerta
 - alertas usam apenas despesas do mes informado
 - alertas de faixas ja emitidas nao aparecem novamente
-- se o limite for alterado, o historico daquele limite e recalculado
+- alterar ou remover um limite apaga o historico de alertas daquele escopo em todos os meses
+
+---
+
+## 13.10 Modo sobrevivencia
+
+O modo sobrevivencia orienta o usuario quando o limite global ou qualquer limite
+por categoria atinge a porcentagem configurada. O valor padrao e 80%, podendo ser
+alterado para qualquer inteiro entre 50% e 90%.
+
+O backend nunca bloqueia transacoes. Ele retorna recomendacoes, uma sugestao de
+bloqueio visual e IDs de despesas que o frontend pode destacar.
+
+### Consultar configuracao
+
+`GET /api/settings/survival-mode`
+
+Resposta antes de uma configuracao explicita:
+
+```json
+{
+  "activation_percentage": 80,
+  "is_default": true
+}
+```
+
+### Atualizar configuracao
+
+`PUT /api/settings/survival-mode`
+
+```json
+{
+  "activation_percentage": 70
+}
+```
+
+Valores abaixo de 50 ou acima de 90 retornam erro `422`.
+
+### Avaliar o mes
+
+`GET /api/reports/survival-mode?month=2026-06`
+
+Exemplo de resposta ativa:
+
+```json
+{
+  "month": "2026-06",
+  "activation_percentage": 80,
+  "is_active": true,
+  "activation_reason": "category_limit",
+  "trigger": {
+    "scope": "category",
+    "category_id": 10,
+    "category_name": "Lazer",
+    "limit_amount": "300.00",
+    "spent_amount": "330.00",
+    "usage_percentage": 110.0
+  },
+  "recommendations": [
+    {
+      "category_id": 10,
+      "category_name": "Lazer",
+      "spent_amount": "330.00",
+      "limit_amount": "300.00",
+      "exceeded_amount": "30.00",
+      "usage_percentage": 110.0,
+      "suggest_block_new_transactions": true,
+      "message": "Considere reduzir gastos em Lazer e evitar novos lancamentos nao essenciais nesta categoria."
+    }
+  ],
+  "highlighted_transaction_ids": [18, 12]
+}
+```
+
+Valores possiveis de `activation_reason`:
+
+- `no_limits`: nenhum limite configurado
+- `below_threshold`: existem limites, mas nenhum atingiu a porcentagem
+- `global_limit`: limite global ativou o modo
+- `category_limit`: limite de uma categoria ativou o modo
+
+### Regras para o frontend
+
+- consultar a avaliacao ao abrir ou atualizar o dashboard
+- destacar as despesas presentes em `highlighted_transaction_ids`
+- exibir recomendacoes na ordem enviada pelo backend
+- tratar `suggest_block_new_transactions` apenas como orientacao visual
+- continuar permitindo novos lancamentos
+- categorias essenciais podem ativar o modo, mas nao aparecem nas recomendacoes
+- recomendacoes consideram somente despesas do mes informado
 
 ---
 
@@ -803,7 +1033,10 @@ O frontend deve estar preparado para respostas como:
 
 - `400`
 - `401`
+- `403`
+- `404`
 - `409`
+- `422`
 - `423`
 
 ### Exemplos importantes
@@ -813,6 +1046,15 @@ O frontend deve estar preparado para respostas como:
 
 - `409 Conflict`
   e-mail ja cadastrado
+
+- `403 Forbidden`
+  tentativa de editar ou excluir uma categoria padrao
+
+- `404 Not Found`
+  recurso inexistente, pertencente a outro usuario ou categoria incompativel
+
+- `422 Unprocessable Entity`
+  payload rejeitado pelas validacoes de schema, como valor negativo, e-mail invalido ou emocao desconhecida
 
 - `423 Locked`
   conta bloqueada temporariamente por muitas tentativas invalidas
@@ -935,7 +1177,7 @@ Essa sequencia permite que cada modulo utilize contratos que ja foram integrados
 
 ---
 
-## 20. Integrando RF02 no frontend
+## 18. Integrando RF02 no frontend
 
 O backend de transacoes foi implementado assumindo que:
 
@@ -964,6 +1206,7 @@ Body:
   "type": "expense",
   "amount": "59.90",
   "date": "2026-05-24",
+  "registered_at": "2026-06-11T14:30:00-03:00",
   "description": "Mercado da semana",
   "emotion": "ansiedade"
 }
@@ -977,6 +1220,7 @@ Body:
   "user_id": 1,
   "category_id": null,
   "recurrence_id": null,
+  "is_recurring": false,
   "type": "expense",
   "amount": "59.90",
   "date": "2026-05-24",
@@ -998,6 +1242,14 @@ Body:
 - somente despesas armazenam uma emocao selecionada
 - receitas sempre sao salvas com `emotion: "not_specified"`, mesmo que outro valor seja enviado
 - ao transformar uma despesa em receita, sua emocao e redefinida para `not_specified`
+- `recurrence_id` e `is_recurring` sao definidos pelo backend e nao devem ser
+  enviados pelo frontend
+- transacoes manuais possuem `is_recurring: false`
+- transacoes geradas por agendamento possuem `is_recurring: true`
+- `date` e a data financeira escolhida pelo usuario
+- `registered_at` e definido pelo backend e informa a data e hora reais do
+  cadastro em Brasilia
+- o frontend deve exibir datas no formato nacional `DD/MM/AAAA`
 - o frontend nao manda `user_id`
 
 ### Emocoes permitidas
@@ -1039,7 +1291,7 @@ Valores atuais:
 
 O frontend deve exibir o seletor de emocao apenas quando `type` for `expense`.
 
-## 20.1 Servico de transacoes no frontend
+## 18.1 Servico de transacoes no frontend
 
 Exemplo de funcoes que o frontend deve criar:
 
@@ -1070,7 +1322,7 @@ export async function listTransactions(token: string) {
 }
 ```
 
-## 20.2 Fluxo recomendado no frontend
+## 18.2 Fluxo recomendado no frontend
 
 1. usuario faz login
 2. frontend salva token
@@ -1081,7 +1333,7 @@ export async function listTransactions(token: string) {
 7. edicao usa `PUT /api/transactions/{id}`
 8. exclusao usa `DELETE /api/transactions/{id}`
 
-## 20.3 Teste manual de RF02
+## 18.3 Teste manual de RF02
 
 1. fazer login
 2. abrir tela de transacoes
@@ -1096,7 +1348,7 @@ export async function listTransactions(token: string) {
 
 ---
 
-## 21. Integrando RF03 Categorias no frontend
+## 19. Integrando RF03 Categorias no frontend
 
 O backend de categorias foi implementado assumindo que:
 
@@ -1241,6 +1493,7 @@ Observacoes:
 - limites e historicos de alerta ligados diretamente a uma categoria personalizada sao removidos junto com ela
 - subcategorias da categoria excluida permanecem existentes e passam a ser categorias raiz com `parent_id: null`
 - `category_id` ainda aceita `null` quando o usuario deseja registrar uma transacao sem selecionar categoria
+- `category_id: null` representa `Sem categoria` e e diferente da categoria padrao `Nao especificado`
 
 ### Servico de categorias no frontend
 
@@ -1253,19 +1506,27 @@ Funcoes recomendadas:
 
 ---
 
-## 22. Integrando resumo financeiro no frontend
+## 20. Integrando resumo financeiro no frontend
 
 O endpoint de resumo financeiro alimenta os cards principais do dashboard.
 
 Ele considera:
 
 - receitas e despesas do usuario autenticado
-- todas as transacoes registradas ate o momento
+- todas as transacoes registradas ou somente o periodo filtrado
 - separacao entre despesa essencial, nao essencial e sem categoria
 
 ### Request
 
 `GET /api/reports/summary`
+
+Filtros opcionais:
+
+- `month=YYYY-MM`
+- `start_date=YYYY-MM-DD`
+- `end_date=YYYY-MM-DD`
+
+`month` nao pode ser combinado com `start_date` ou `end_date`. A data final e inclusiva.
 
 Header:
 
@@ -1305,7 +1566,7 @@ Esse retorno pode alimentar:
 
 ---
 
-## 23. Integrando relatorio por emocao no frontend
+## 21. Integrando relatorio por emocao no frontend
 
 O endpoint de relatorio por emocao usa apenas dados do usuario autenticado.
 
@@ -1314,10 +1575,14 @@ Ele considera:
 - apenas transacoes do tipo `expense`
 - apenas transacoes do usuario do token
 - todas as emocoes validas, mesmo quando o total for zero
+- todo o historico ou somente o periodo e categoria filtrados
+- uma emocao so fica apta a gerar insight apos cinco despesas em uma consulta delimitada dentro de um unico mes
 
 ### Request
 
 `GET /api/reports/by-emotion`
+
+Filtros opcionais: `month`, `start_date`, `end_date` e `category_id`.
 
 Header:
 
@@ -1327,6 +1592,8 @@ Authorization: Bearer TOKEN_AQUI
 
 ### Response
 
+O exemplo abaixo esta abreviado. A resposta real inclui todas as emocoes validas, inclusive aquelas com valores zerados.
+
 ```json
 [
   {
@@ -1334,14 +1601,18 @@ Authorization: Bearer TOKEN_AQUI
     "label": "Ansiedade",
     "transaction_count": 2,
     "total_amount": "150.00",
-    "percentage": 62.5
+    "average_amount": "75.00",
+    "percentage": 62.5,
+    "insight_eligible": false
   },
   {
     "emotion": "felicidade",
     "label": "Felicidade",
     "transaction_count": 1,
     "total_amount": "90.00",
-    "percentage": 37.5
+    "average_amount": "90.00",
+    "percentage": 37.5,
+    "insight_eligible": false
   }
 ]
 ```
@@ -1352,7 +1623,9 @@ Authorization: Bearer TOKEN_AQUI
 - `label`: texto pronto para exibicao na interface
 - `transaction_count`: quantidade de despesas naquela emocao
 - `total_amount`: soma das despesas naquela emocao
+- `average_amount`: media das despesas naquela emocao
 - `percentage`: porcentagem daquela emocao dentro do total de despesas
+- `insight_eligible`: indica se existem ao menos cinco despesas especificadas em uma consulta delimitada dentro de um unico mes
 
 ### Uso recomendado no frontend
 
@@ -1380,11 +1653,11 @@ Esse retorno pode alimentar:
 - grafico de pizza
 - grafico de barras
 - cards de resumo emocional
-- alertas futuros de gatilho de gasto
+- cards emocionais e analises futuras
 
 ---
 
-## 24. Integrando relatorio por categoria no frontend
+## 22. Integrando relatorio por categoria no frontend
 
 O endpoint de relatorio por categoria mostra onde o usuario gastou mais.
 
@@ -1394,10 +1667,16 @@ Ele considera:
 - apenas transacoes do usuario autenticado
 - categorias padrao e categorias proprias do usuario
 - uma linha especial chamada `Sem categoria`
+- todo o historico ou somente o periodo e categoria filtrados
+- categorias acessiveis sem despesas, retornadas com valores zerados
+- cada subcategoria aparece separadamente da categoria pai
+- `Sem categoria` representa apenas `category_id: null`; `Nao especificado` aparece como uma categoria padrao normal
 
 ### Request
 
 `GET /api/reports/by-category`
+
+Filtros opcionais: `month`, `start_date`, `end_date` e `category_id`.
 
 Header:
 
@@ -1406,6 +1685,8 @@ Authorization: Bearer TOKEN_AQUI
 ```
 
 ### Response
+
+O exemplo abaixo esta abreviado. A resposta real tambem inclui categorias acessiveis que ainda nao possuem despesas.
 
 ```json
 [
@@ -1439,9 +1720,33 @@ Authorization: Bearer TOKEN_AQUI
 
 ---
 
-## 25. Integrando gatilhos de gasto no frontend
+## 22.1 Integrando o relatorio visual do RF08
 
-O endpoint de gatilhos cruza categoria e emocao.
+`GET /api/reports/visual` entrega dados ja preparados para o dashboard. Ele aceita os filtros opcionais `month`, `start_date`, `end_date` e `category_id`.
+
+Regras aplicadas pelo backend:
+
+- pizza: itens inferiores a 1% e excedentes sao consolidados como `Outros`
+- barras: no maximo as dez maiores categorias ou emocoes
+- texto: itens que ficaram fora das barras continuam disponiveis
+- insight emocional: somente emocoes especificadas com ao menos cinco despesas em uma consulta delimitada dentro de um unico mes
+
+Cada distribuicao possui:
+
+- `pie_items`: itens prontos para grafico de pizza
+- `bar_items`: itens prontos para grafico de barras
+- `textual_items`: dados menores que devem ser apresentados em texto
+
+O frontend deve usar essas listas diretamente para manter as mesmas regras em todas as telas.
+
+---
+
+## 23. Integrando cruzamentos de emocao e categoria no frontend
+
+O endpoint `/api/reports/triggers` cruza categoria e emocao e retorna apenas combinacoes que possuem despesas registradas.
+
+Esse endpoint fornece a matriz usada em graficos. As conclusoes automaticas do RF09
+sao retornadas por `/api/reports/emotion-spending-analysis`.
 
 Esse cruzamento permite analisar perguntas como:
 
@@ -1489,27 +1794,230 @@ Authorization: Bearer TOKEN_AQUI
 
 ### Graficos recomendados
 
-- ranking de gatilhos por `total_amount`
+- ranking de combinacoes por `total_amount`
 - mapa de calor emocao x categoria
 - tabela de padroes de gasto
-- cards de alerta, por exemplo: `Ansiedade + Alimentacao = R$ 150,00`
+- cards informativos, por exemplo: `Ansiedade + Alimentacao = R$ 150,00`
+
+### Analise completa do RF09
+
+`GET /api/reports/emotion-spending-analysis?month=2026-06`
+
+Filtros opcionais: `month`, `start_date`, `end_date` e `category_id`.
+
+Principais campos da resposta:
+
+- `conclusions_enabled`: indica se a consulta esta dentro de um unico mes
+- `overall_statistics`: media geral de despesas com emocao informada
+- `reference_statistics`: media ponderada das emocoes de referencia
+- `emotion_analysis`: medias e classificacao geral de cada emocao
+- `category_distribution`: mesma matriz retornada por `/reports/triggers`
+- `category_triggers`: classificacao por emocao e categoria
+- `details_by_emotion`: ate dez maiores categorias e transacoes de cada emocao com dados
+
+Regras de classificacao:
+
+- referencia: `calma`, `felicidade`, `indiferenca` e `satisfacao`
+- candidatas: `raiva`, `frustracao`, `empolgacao`, `ansiedade`, `estresse` e `tedio`
+- `not_specified` aparece como `Nao Informado`, mas nao participa das conclusoes
+- a media geral tambem exclui `Nao Informado`
+- exige cinco despesas candidatas e cinco despesas de referencia
+- gatilho exige media candidata pelo menos 20% superior
+- gatilho por categoria usa a referencia da mesma categoria
+- valores exatos decidem a classificacao; percentuais arredondados servem para exibicao
+
+Valores possiveis de `reason`:
+
+- `trigger`
+- `not_trigger`
+- `period_not_single_month`
+- `insufficient_candidate_data`
+- `insufficient_reference_data`
+- `not_candidate`
+
+O frontend deve apresentar uma conclusao automatica somente quando
+`conclusions_enabled`, `sufficient_data` e `is_trigger` forem verdadeiros.
 
 ---
 
-## 18. Observacao importante sobre CORS
+## 24. Integrando transacoes recorrentes no frontend
 
-Se o frontend e o backend rodarem em origens diferentes, o navegador pode bloquear as requisicoes sem configuracao de CORS.
+Todas as rotas de recorrencia exigem `Authorization: Bearer <token>`.
+
+### Criar um agendamento mensal
+
+`POST /api/recurrences/`
+
+```json
+{
+  "category_id": 1,
+  "type": "expense",
+  "amount": "120.00",
+  "description": "Internet",
+  "emotion": "not_specified",
+  "frequency": "monthly",
+  "day_of_month": 31,
+  "start_date": "2026-06-10",
+  "end_date": null
+}
+```
+
+A criacao apenas salva o agendamento. Quando `day_of_month` nao for informado,
+o backend usa o dia de `start_date`. Em meses sem o dia escolhido, a ocorrencia
+usa o ultimo dia disponivel.
+
+Na edicao, enviar `day_of_month: null` redefine o dia mensal para o dia de
+`start_date`.
+
+As respostas de recorrencia incluem:
+
+- `is_active`: campo booleano mantido para verificacoes simples;
+- `status: "active"`: recorrencia apta a gerar transacoes;
+- `status: "paused"`: recorrencia pausada que ainda pode ser retomada;
+- `status: "completed"`: recorrencia encerrada pela data final.
+
+### Gerar ocorrencias vencidas
+
+`POST /api/recurrences/run-due`
+
+```json
+{
+  "through_date": "2026-06-10",
+  "generated_count": 1,
+  "generated_transactions": [
+    {
+      "id": 20,
+      "user_id": 4,
+      "category_id": 1,
+      "recurrence_id": 3,
+      "is_recurring": true,
+      "type": "expense",
+      "amount": "120.00",
+      "date": "2026-06-10",
+      "description": "Internet",
+      "emotion": "not_specified"
+    }
+  ]
+}
+```
+
+O frontend deve chamar esse endpoint depois do login ou ao abrir o dashboard.
+Ele gera todas as ocorrencias vencidas do usuario ate hoje. A chamada pode ser
+repetida com seguranca porque ocorrencias ja registradas nao sao duplicadas.
+Depois da chamada, o frontend deve atualizar transacoes, relatorios e consultar
+o alerta de teto de gastos.
+
+### Regras de edicao, pausa e cancelamento
+
+- editar uma recorrencia afeta somente transacoes futuras;
+- pausar impede novas geracoes;
+- retomar calcula a proxima ocorrencia a partir de hoje e ignora o periodo pausado;
+- retomar uma recorrencia que ja esta ativa nao altera seu agendamento;
+- uma recorrencia concluida nao pode ser retomada sem antes editar sua data final;
+- cancelar remove o agendamento, mas mantem as transacoes ja registradas;
+- receitas sempre usam `emotion: "not_specified"`;
+- categoria e tipo precisam ser compativeis.
+
+---
+
+## 25. Integrando previsao de saldo no frontend
+
+`GET /api/reports/balance-prediction`
+
+O endpoint exige token e sempre calcula o mes atual em Brasilia. Ele nao aceita
+um mes selecionavel e nao representa o saldo real de uma conta bancaria.
+
+Formula:
+
+```text
+saldo projetado =
+  receitas registradas no mes
+  - despesas registradas no mes
+  + receitas recorrentes pendentes no mes
+  - despesas recorrentes pendentes no mes
+  - estimativa de despesas variaveis restantes
+```
+
+A estimativa variavel usa a media diaria das despesas nao recorrentes dos tres
+meses completos anteriores ou menos. Meses sem despesas variaveis sao ignorados.
+
+Exemplo de resposta:
+
+```json
+{
+  "month": "2026-06",
+  "calculated_on": "2026-06-11",
+  "days_remaining": 19,
+  "current_income": "1000.00",
+  "current_expense": "300.00",
+  "current_month_balance": "700.00",
+  "expected_future_recurring_income": "2000.00",
+  "expected_future_recurring_expense": "500.00",
+  "historical_daily_variable_expense_average": "20.00",
+  "expected_remaining_variable_expense": "380.00",
+  "predicted_end_balance": "1820.00",
+  "history_months_used": [
+    {
+      "month": "2026-05",
+      "variable_expense": "620.00",
+      "days_in_month": 31
+    }
+  ],
+  "confidence_level": "low"
+}
+```
+
+Niveis de confianca:
+
+- `insufficient`: nenhum mes completo com despesa variavel;
+- `low`: um mes utilizavel;
+- `medium`: dois meses utilizaveis;
+- `high`: tres meses utilizaveis.
+
+Regras de integracao:
+
+- consultar ao abrir ou atualizar o dashboard;
+- consultar novamente depois de criar, editar ou excluir uma transacao;
+- consultar novamente depois de alterar ou executar recorrencias;
+- valores gerados por recorrencias possuem `is_recurring: true`;
+- cancelar uma recorrencia preserva `is_recurring: true` nas transacoes antigas;
+- recorrencias vencidas no mes, mas ainda nao geradas, entram na projecao;
+- o frontend deve deixar claro que o valor e uma estimativa do mes, nao saldo bancario.
+
+---
+
+## 26. Observacao importante sobre CORS
+
+Se o frontend e o backend rodarem em origens diferentes, o navegador exige uma
+permissao CORS correspondente.
 
 Exemplo:
 
 - frontend em `http://localhost:3000`
 - backend em `http://127.0.0.1:8000`
 
-Nesse caso, o backend precisa liberar a origem utilizada pelo frontend. A configuracao deve ser realizada quando os dois ambientes forem executados em origens diferentes.
+O backend registra `CORSMiddleware` e libera por padrao:
+
+- `http://localhost:3000`
+- `http://127.0.0.1:3000`
+
+As origens sao configuradas no `.env` do backend, separadas por virgula:
+
+```env
+FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+Quando o frontend utilizar outro dominio ou porta, sua origem deve ser adicionada
+a essa lista e o backend deve ser reiniciado. Informe somente protocolo, host e
+porta, sem `/api`, caminhos ou barra final.
+
+Como a autenticacao atual envia JWT no header `Authorization`, o CORS nao
+habilita credenciais por cookie. Origens desconhecidas nao recebem permissao do
+backend e sao bloqueadas pelo navegador.
 
 ---
 
-## 19. Resumo final
+## 27. Resumo final
 
 Fluxo recomendado para a integracao:
 

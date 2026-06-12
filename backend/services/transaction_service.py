@@ -29,6 +29,7 @@ class TransactionService:
         transaction = Transaction(
             user_id=current_user.id,
             category_id=category.id if category is not None else None,
+            is_recurring=False,
             type=payload.type,
             amount=payload.amount,
             date=payload.date,
