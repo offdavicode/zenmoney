@@ -141,6 +141,4 @@ class TransactionService:
 
     @staticmethod
     def _resolve_emotion(transaction_type: str, emotion: str | None) -> str:
-        if transaction_type != "expense":
-            return DEFAULT_EMOTION
         return normalize_emotion(emotion)

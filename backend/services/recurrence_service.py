@@ -114,6 +114,37 @@ class RecurrenceService:
         next_emotion = update_data.get("emotion", recurrence.emotion)
         recurrence.emotion = self._resolve_emotion(next_type, next_emotion)
 
+        from sqlalchemy import update as sa_update, delete as sa_delete
+        today = now_in_brasilia().date()
+
+        if schedule_changed:
+            # If schedule changed, the easiest way to handle already generated future transactions
+            # is to delete them. The next `run_due` will regenerate them on the correct schedule.
+            self.db.execute(
+                sa_delete(Transaction)
+                .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+            )
+        else:
+            # If only attributes changed (amount, description, etc.), propagate to future transactions
+            update_values = {}
+            if "category_id" in update_data:
+                update_values["category_id"] = category.id if category else None
+            if "type" in update_data:
+                update_values["type"] = next_type
+            if "amount" in update_data:
+                update_values["amount"] = update_data["amount"]
+            if "description" in update_data:
+                update_values["description"] = recurrence.description
+            if "emotion" in update_data:
+                update_values["emotion"] = recurrence.emotion
+
+            if update_values:
+                self.db.execute(
+                    sa_update(Transaction)
+                    .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+                    .values(**update_values)
+                )
+
         self.db.commit()
         self.db.refresh(recurrence)
         return recurrence
@@ -121,6 +152,14 @@ class RecurrenceService:
     def pause_recurrence(self, current_user: User, recurrence_id: int) -> Recurrence:
         recurrence = self._get_owned_recurrence(current_user, recurrence_id)
         recurrence.is_active = False
+
+        from sqlalchemy import delete as sa_delete
+        today = now_in_brasilia().date()
+        self.db.execute(
+            sa_delete(Transaction)
+            .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+        )
+
         self.db.commit()
         self.db.refresh(recurrence)
         return recurrence
@@ -147,6 +186,14 @@ class RecurrenceService:
 
     def delete_recurrence(self, current_user: User, recurrence_id: int) -> None:
         recurrence = self._get_owned_recurrence(current_user, recurrence_id)
+        
+        from sqlalchemy import delete as sa_delete
+        today = now_in_brasilia().date()
+        self.db.execute(
+            sa_delete(Transaction)
+            .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+        )
+        
         self.db.delete(recurrence)
         self.db.commit()
 
@@ -271,6 +318,4 @@ class RecurrenceService:
 
     @staticmethod
     def _resolve_emotion(transaction_type: str, emotion: str | None) -> str:
-        if transaction_type != "expense":
-            return DEFAULT_EMOTION
         return normalize_emotion(emotion)

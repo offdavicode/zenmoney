@@ -104,6 +104,10 @@ class RecurrenceResponse(BaseModel):
         return "paused"
 
 
+class RecurrenceRunDueRequest(BaseModel):
+    through_date: date_type | None = None
+
+
 class RecurrenceRunDueResponse(BaseModel):
     through_date: date_type
     generated_count: int

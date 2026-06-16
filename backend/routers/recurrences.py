@@ -7,6 +7,7 @@ from models.user import User
 from schemas.recurrence import (
     RecurrenceCreate,
     RecurrenceResponse,
+    RecurrenceRunDueRequest,
     RecurrenceRunDueResponse,
     RecurrenceUpdate,
 )
@@ -41,10 +42,12 @@ def list_recurrences(
 
 @router.post("/run-due", response_model=RecurrenceRunDueResponse)
 def run_due_recurrences(
+    payload: RecurrenceRunDueRequest | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return RecurrenceService(db).run_due(current_user)
+    through_date = payload.through_date if payload else None
+    return RecurrenceService(db).run_due(current_user, through_date)
 
 
 @router.get("/{recurrence_id}", response_model=RecurrenceResponse)
