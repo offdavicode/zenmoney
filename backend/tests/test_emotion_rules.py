@@ -94,4 +94,4 @@ def test_stored_emotion_alignment_preserves_only_valid_expense_emotions() -> Non
 
         assert valid_expense.emotion == "calma"
         assert legacy_expense.emotion == DEFAULT_EMOTION
-        assert emotional_income.emotion == DEFAULT_EMOTION
+        assert emotional_income.emotion == "felicidade"

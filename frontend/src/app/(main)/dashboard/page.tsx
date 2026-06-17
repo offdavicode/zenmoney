@@ -210,8 +210,8 @@ export default function DashboardPage() {
       <SurvivalMode month={selectedMonth} />
 
       
-      {/* Entradas & Saídas (um ao lado do outro) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Entradas & Saídas (Lado a lado no desktop, um seguido do outro no mobile) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Card Entradas */}
         <Card className="rounded-3xl !gap-2">
           <div className="flex items-start justify-between">
@@ -253,149 +253,158 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Previsão do Saldo / Variação do Saldo */}
-      <Card className="rounded-3xl !gap-2">
-        <div className="flex items-start justify-between">
-          <h3 className="text-sm font-medium text-muted">
-            {period === 'current_month' || (period === 'custom' && periodEnd && periodEnd.getTime() > new Date().setHours(23, 59, 59, 999))
-              ? 'Previsão do Saldo'
-              : 'Variação do Saldo'}
-          </h3>
-        </div>
-        <div className="mt-1">
-          <BalanceForecast
-            transactions={transactions}
-            periodStart={periodStart}
-            periodEnd={periodEnd}
-            period={period}
-          />
-        </div>
-      </Card>
-
-      {/* Os restantes dos gráficos */}
+      {/* Grid de 3 Colunas (Restante dos Gráficos e Previsão) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Card Proporção de Gastos */}
-        <Card className="rounded-3xl flex flex-col relative min-h-[450px]">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-base font-bold text-foreground">Proporção de Gastos</h3>
-              <p className="text-xs text-muted font-medium mt-0.5">
-                {proportionType === 'category' ? 'Por categoria' : 'Por emoção'}
-              </p>
+        {/* COLUNA 1 */}
+        <div className="flex flex-col gap-6">
+          {/* Card Sentimento x Consumo */}
+          <Card className="rounded-3xl flex-1 flex flex-col">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-base font-bold text-foreground">Sentimento x Consumo</h3>
             </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowProportionMenu(!showProportionMenu)}
-                className="text-muted hover:text-foreground transition-colors p-1 rounded-full hover:bg-surface-hover"
-              >
-                <MoreVertical size={18} />
-              </button>
-              {showProportionMenu && (
-                <div className="absolute right-0 mt-1 w-28 rounded-xl border border-border bg-surface p-1 shadow-lg z-10 animate-fade-in">
-                  <button
-                    onClick={() => {
-                      setProportionType('category');
-                      setShowProportionMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${proportionType === 'category' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
-                      }`}
-                  >
-                    Categoria
-                  </button>
-                  <button
-                    onClick={() => {
-                      setProportionType('emotion');
-                      setShowProportionMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${proportionType === 'emotion' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
-                      }`}
-                  >
-                    Emoção
-                  </button>
-                </div>
+            <div className="flex-1 flex flex-col mt-4">
+              {isLoadingReports || !emotionAnalysis ? (
+                <Skeleton className="w-full h-full min-h-[300px]" />
+              ) : (
+                <EmotionCrossChart data={emotionAnalysis} />
               )}
             </div>
-          </div>
+          </Card>
+        </div>
 
-          <div className="flex-1 flex flex-col justify-center">
-            {isLoadingReports || !visualReport ? (
-              <Skeleton className="w-full h-full min-h-[300px]" />
-            ) : proportionType === 'category' ? (
-              <ExpensePieChart data={visualReport.category_distribution.pie_items} />
-            ) : (
-              <EmotionPieChart data={visualReport.emotion_distribution.pie_items} />
-            )}
-          </div>
-        </Card>
-
-        {/* Card Ranking de Despesas */}
-        <Card className="rounded-3xl flex flex-col relative min-h-[450px]">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-base font-bold text-foreground">Ranking de Despesas</h3>
-              <p className="text-xs text-muted font-medium mt-0.5">
-                {rankingType === 'category' ? 'Por categoria' : 'Por emoção'}
-              </p>
+        {/* COLUNA 2 */}
+        <div className="flex flex-col gap-6">
+          {/* Card Proporção de Gastos */}
+          <Card className="rounded-3xl flex-1 relative">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-foreground">Proporção de Gastos</h3>
+                <p className="text-xs text-muted font-medium mt-0.5">
+                  {proportionType === 'category' ? 'Por categoria' : 'Por emoção'}
+                </p>
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowProportionMenu(!showProportionMenu)}
+                  className="text-muted hover:text-foreground transition-colors p-1 rounded-full hover:bg-surface-hover"
+                >
+                  <MoreVertical size={18} />
+                </button>
+                {showProportionMenu && (
+                  <div className="absolute right-0 mt-1 w-28 rounded-xl border border-border bg-surface p-1 shadow-lg z-10 animate-fade-in">
+                    <button
+                      onClick={() => {
+                        setProportionType('category');
+                        setShowProportionMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${proportionType === 'category' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
+                        }`}
+                    >
+                      Categoria
+                    </button>
+                    <button
+                      onClick={() => {
+                        setProportionType('emotion');
+                        setShowProportionMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${proportionType === 'emotion' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
+                        }`}
+                    >
+                      Emoção
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowRankingMenu(!showRankingMenu)}
-                className="text-muted hover:text-foreground transition-colors p-1 rounded-full hover:bg-surface-hover"
-              >
-                <MoreVertical size={18} />
-              </button>
-              {showRankingMenu && (
-                <div className="absolute right-0 mt-1 w-38 rounded-xl border border-border bg-surface p-1 shadow-lg z-10 animate-fade-in">
-                  <button
-                    onClick={() => {
-                      setRankingType('category');
-                      setShowRankingMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${rankingType === 'category' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
-                      }`}
-                  >
-                    Top 10 Categorias
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRankingType('emotion');
-                      setShowRankingMenu(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${rankingType === 'emotion' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
-                      }`}
-                  >
-                    Top 10 Emoções
-                  </button>
-                </div>
+
+            <div className="flex-1 flex flex-col justify-center">
+              {isLoadingReports || !visualReport ? (
+                <Skeleton className="w-full h-full min-h-[300px]" />
+              ) : proportionType === 'category' ? (
+                <ExpensePieChart data={visualReport.category_distribution.pie_items} />
+              ) : (
+                <EmotionPieChart data={visualReport.emotion_distribution.pie_items} />
               )}
             </div>
-          </div>
+          </Card>
+        </div>
 
-          <div className="flex-1 flex flex-col justify-center">
-            {isLoadingReports || !visualReport ? (
-              <Skeleton className="w-full h-full min-h-[300px]" />
-            ) : rankingType === 'category' ? (
-              <CategoryBarChart data={visualReport.category_distribution.bar_items} />
-            ) : (
-              <EmotionBarChart data={visualReport.emotion_distribution.bar_items} />
-            )}
-          </div>
-        </Card>
+        {/* COLUNA 3 */}
+        <div className="flex flex-col gap-6">
+          {/* Card Previsão do Saldo */}
+          <Card className="rounded-3xl !gap-2">
+            <div className="flex items-start justify-between">
+              <h3 className="text-sm font-medium text-muted">
+                {period === 'current_month' || (period === 'custom' && periodEnd && periodEnd.getTime() > new Date().setHours(23, 59, 59, 999))
+                  ? 'Previsão do Saldo'
+                  : 'Variação do Saldo'}
+              </h3>
+            </div>
+            <div className="mt-1">
+              <BalanceForecast
+                transactions={transactions}
+                periodStart={periodStart}
+                periodEnd={periodEnd}
+                period={period}
+              />
+            </div>
+          </Card>
 
-        {/* Card Sentimento x Consumo */}
-        <Card className="rounded-3xl flex flex-col min-h-[450px]">
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-base font-bold text-foreground">Sentimento x Consumo</h3>
-          </div>
-          <div className="flex-1 flex flex-col justify-center">
-            {isLoadingReports || !emotionAnalysis ? (
-              <Skeleton className="w-full h-full min-h-[300px]" />
-            ) : (
-              <EmotionCrossChart data={emotionAnalysis} />
-            )}
-          </div>
-        </Card>
+          {/* Card Ranking de Despesas */}
+          <Card className="rounded-3xl flex-1 relative">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-base font-bold text-foreground">Ranking de Despesas</h3>
+                <p className="text-xs text-muted font-medium mt-0.5">
+                  {rankingType === 'category' ? 'Por categoria' : 'Por emoção'}
+                </p>
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowRankingMenu(!showRankingMenu)}
+                  className="text-muted hover:text-foreground transition-colors p-1 rounded-full hover:bg-surface-hover"
+                >
+                  <MoreVertical size={18} />
+                </button>
+                {showRankingMenu && (
+                  <div className="absolute right-0 mt-1 w-38 rounded-xl border border-border bg-surface p-1 shadow-lg z-10 animate-fade-in">
+                    <button
+                      onClick={() => {
+                        setRankingType('category');
+                        setShowRankingMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${rankingType === 'category' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
+                        }`}
+                    >
+                      Top 10 Categorias
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRankingType('emotion');
+                        setShowRankingMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${rankingType === 'emotion' ? 'bg-surface-hover text-foreground' : 'text-muted hover:bg-surface-hover hover:text-foreground'
+                        }`}
+                    >
+                      Top 10 Emoções
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col justify-center">
+              {isLoadingReports || !visualReport ? (
+                <Skeleton className="w-full h-full min-h-[300px]" />
+              ) : rankingType === 'category' ? (
+                <CategoryBarChart data={visualReport.category_distribution.bar_items} />
+              ) : (
+                <EmotionBarChart data={visualReport.emotion_distribution.bar_items} />
+              )}
+            </div>
+          </Card>
+        </div>
 
       </div>
     </div>

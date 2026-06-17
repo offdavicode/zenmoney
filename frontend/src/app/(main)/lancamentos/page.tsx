@@ -10,6 +10,7 @@ import { DayEmotionTransactionsModal } from '@/components/transactions/DayEmotio
 import { RecurrenceConfirmDialog } from '@/components/transactions/RecurrenceConfirmDialog';
 import { type TransactionOut, type TransactionCreate } from '@/services/transactions.service';
 import { type RecurrenceCreate, type RecurrenceUpdate } from '@/services/recurrences.service';
+import { getSurvivalModeReport } from '@/services/reports.service';
 import { MONTHS } from '@/utils/constants';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -28,6 +29,26 @@ export default function LancamentosPage() {
 
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [highlightedTxIds, setHighlightedTxIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSurvivalReport() {
+      try {
+        const monthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+        const report = await getSurvivalModeReport({ month: monthStr });
+        if (isMounted) {
+          setHighlightedTxIds(report?.highlighted_transaction_ids || []);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar relatório sobrevivência para lançamentos:', e);
+      }
+    }
+    loadSurvivalReport();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentYear, currentMonth, transactions]);
 
   
   useEffect(() => {
@@ -246,6 +267,7 @@ export default function LancamentosPage() {
         currentYear={currentYear}
         onAddTransaction={handleOpenNewTransaction}
         onViewDayEmotion={handleViewDayEmotion}
+        highlightedTransactionIds={highlightedTxIds}
       />
 
       

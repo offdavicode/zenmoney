@@ -10,6 +10,7 @@ interface TransactionSpreadsheetProps {
   currentYear: number;
   onAddTransaction: (date: string, emotionId?: string) => void;
   onViewDayEmotion: (dateKey: string, emotionId: string) => void;
+  highlightedTransactionIds?: number[];
 }
 
 export function TransactionSpreadsheet({
@@ -18,6 +19,7 @@ export function TransactionSpreadsheet({
   currentYear,
   onAddTransaction,
   onViewDayEmotion,
+  highlightedTransactionIds = [],
 }: TransactionSpreadsheetProps) {
   
   const daysInMonth = useMemo(() => {
@@ -25,19 +27,22 @@ export function TransactionSpreadsheet({
   }, [currentYear, currentMonth]);
 
   
-  const { emotionBalances, dailyBalances, emotionCounts } = useMemo(() => {
+  const { emotionBalances, dailyBalances, emotionCounts, highlightedCells } = useMemo(() => {
     const balances: Record<string, Record<string, number>> = {};
     const daily: Record<string, number> = {};
     const counts: Record<string, Record<string, number>> = {};
+    const highlighted: Record<string, Record<string, boolean>> = {};
 
     for (let i = 1; i <= daysInMonth; i++) {
       const dayStr = String(i).padStart(2, '0');
       const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${dayStr}`;
       balances[dateKey] = {};
       counts[dateKey] = {};
+      highlighted[dateKey] = {};
       EMOTIONS.forEach((emp) => {
         balances[dateKey][emp.id] = 0;
         counts[dateKey][emp.id] = 0;
+        highlighted[dateKey][emp.id] = false;
       });
       daily[dateKey] = 0;
     }
@@ -52,10 +57,14 @@ export function TransactionSpreadsheet({
       balances[dateStr][tx.emotion] += amount;
       counts[dateStr][tx.emotion] += 1;
       daily[dateStr] += amount;
+      
+      if (highlightedTransactionIds && highlightedTransactionIds.includes(tx.id)) {
+        highlighted[dateStr][tx.emotion] = true;
+      }
     });
 
-    return { emotionBalances: balances, dailyBalances: daily, emotionCounts: counts };
-  }, [transactions, currentMonth, currentYear, daysInMonth]);
+    return { emotionBalances: balances, dailyBalances: daily, emotionCounts: counts, highlightedCells: highlighted };
+  }, [transactions, currentMonth, currentYear, daysInMonth, highlightedTransactionIds]);
 
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => {
     const dayNum = i + 1;
@@ -171,11 +180,11 @@ export function TransactionSpreadsheet({
                       </td>
 
                       
-                      <td className="border-r border-border p-0 w-[80px] align-middle">
+                      <td className={`border-r border-border p-0 w-[80px] align-middle ${highlightedCells[dateKey]?.[emotion.id] ? 'bg-[var(--accent-red)]/10 ring-2 ring-[var(--accent-red)]/40 ring-inset' : ''}`}>
                         {count > 0 ? (
                           <button
                             onClick={() => onViewDayEmotion(dateKey, emotion.id)}
-                            className={`w-full h-full min-h-[40px] flex flex-col items-center justify-center px-1 py-1 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group`}
+                            className="w-full h-full min-h-[40px] flex flex-col items-center justify-center px-1 py-1 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group"
                             title={`${count} transação(ões) — clique para ver`}
                           >
                             <span className={`text-xs font-semibold ${cellBalanceColor}`}>

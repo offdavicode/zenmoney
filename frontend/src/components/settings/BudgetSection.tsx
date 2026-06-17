@@ -191,7 +191,7 @@ export function BudgetSection() {
                   onChange={(e) => setSelectedCatId(Number(e.target.value))}
                 >
                   <option value="" disabled>Selecione uma categoria</option>
-                  {categories.map(c => (
+                  {categories.filter(c => c.type === 'expense').map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>

@@ -29,8 +29,8 @@ export function ExpensePieChart({ data = [] }: ExpensePieChartProps) {
   }));
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="h-[250px] w-full">
+    <div className="flex flex-col gap-5 flex-1 justify-between">
+      <div className="h-[250px] w-full shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -60,7 +60,7 @@ export function ExpensePieChart({ data = [] }: ExpensePieChartProps) {
         </ResponsiveContainer>
       </div>
 
-      <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+      <div className="flex flex-col gap-2 flex-1 overflow-y-auto pr-1">
         {chartData.map((entry, index) => {
           return (
             <div key={index} className="flex items-center justify-between text-xs border-b border-border/50 pb-1.5 last:border-0 last:pb-0">
