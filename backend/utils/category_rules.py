@@ -62,7 +62,6 @@ def build_default_category_rows() -> list[dict[str, object]]:
                     "is_default": True,
                     "is_essential": is_essential,
                     "user_id": None,
-                    "parent_id": None,
                 }
             )
     return rows

@@ -9,7 +9,7 @@ from models.transaction import Transaction
 from models.user import User
 from schemas.recurrence import RecurrenceCreate, RecurrenceRunDueResponse, RecurrenceUpdate
 from utils.date_utils import now_in_brasilia
-from utils.emotion_rules import DEFAULT_EMOTION, normalize_emotion
+from utils.emotion_rules import normalize_emotion
 from utils.recurrence_dates import first_scheduled_on_or_after, next_scheduled_date
 
 
@@ -118,11 +118,11 @@ class RecurrenceService:
         today = now_in_brasilia().date()
 
         if schedule_changed:
-            # If schedule changed, the easiest way to handle already generated future transactions
-            # is to delete them. The next `run_due` will regenerate them on the correct schedule.
+            # Only strictly future generated transactions are disposable.
+            # Today's transaction is already part of the user's current records.
             self.db.execute(
                 sa_delete(Transaction)
-                .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+                .where(Transaction.recurrence_id == recurrence.id, Transaction.date > today)
             )
         else:
             # If only attributes changed (amount, description, etc.), propagate to future transactions
@@ -141,7 +141,7 @@ class RecurrenceService:
             if update_values:
                 self.db.execute(
                     sa_update(Transaction)
-                    .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+                    .where(Transaction.recurrence_id == recurrence.id, Transaction.date > today)
                     .values(**update_values)
                 )
 

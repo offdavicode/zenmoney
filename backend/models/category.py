@@ -19,10 +19,8 @@ class Category(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_essential: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    parent_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now)
 
     user = relationship("User", back_populates="categories")
-    parent = relationship("Category", remote_side=[id], backref="children")
     transactions = relationship("Transaction", back_populates="category")
     recurrences = relationship("Recurrence", back_populates="category")

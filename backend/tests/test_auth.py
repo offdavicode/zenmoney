@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_register_login_me_and_logout_cycle(client):
     register_response = client.post(
         "/api/auth/register",
@@ -42,6 +45,29 @@ def test_register_login_me_and_logout_cycle(client):
     revoked_response = client.get("/api/auth/me", headers=headers)
     assert revoked_response.status_code == 401
     assert revoked_response.json()["detail"] == "Token has been revoked."
+
+
+@pytest.mark.parametrize(
+    "password",
+    [
+        "senha@123",
+        "SENHA@123",
+        "Senha1234",
+        "Senha@abc",
+        "Se@1",
+    ],
+)
+def test_register_rejects_passwords_that_do_not_match_frontend_rule(client, password):
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Senha Invalida",
+            "email": f"{password.replace('@', 'at')}@example.com",
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_authenticated_user_can_update_profile(client):

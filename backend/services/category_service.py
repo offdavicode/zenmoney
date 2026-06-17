@@ -23,11 +23,6 @@ class CategoryService:
         self.db = db
 
     def create_category(self, current_user: User, payload: CategoryCreate) -> Category:
-        parent = self._resolve_parent_category(
-            current_user=current_user,
-            parent_id=payload.parent_id,
-            category_type=payload.type,
-        )
         self._ensure_name_available(
             current_user=current_user,
             name=payload.name,
@@ -40,7 +35,6 @@ class CategoryService:
             is_default=False,
             is_essential=payload.is_essential,
             user_id=current_user.id,
-            parent_id=parent.id if parent is not None else None,
         )
         self.db.add(category)
         self.db.commit()
@@ -78,19 +72,6 @@ class CategoryService:
                 ignore_category_id=category.id,
             )
             category.name = update_data["name"]
-
-        if "parent_id" in update_data:
-            if update_data["parent_id"] == category.id:
-                raise CategoryServiceError("A category cannot be its own parent.", 400)
-
-            parent = self._resolve_parent_category(
-                current_user=current_user,
-                parent_id=update_data["parent_id"],
-                category_type=category.type,
-            )
-            if parent is not None and self._would_create_parent_cycle(category, parent):
-                raise CategoryServiceError("Category hierarchy cannot contain cycles.", 400)
-            category.parent_id = parent.id if parent is not None else None
 
         if "is_essential" in update_data:
             category.is_essential = update_data["is_essential"]
@@ -165,23 +146,6 @@ class CategoryService:
             )
         return category
 
-    def _resolve_parent_category(
-        self,
-        current_user: User,
-        parent_id: int | None,
-        category_type: str,
-    ) -> Category | None:
-        if parent_id is None:
-            return None
-
-        parent = self._get_accessible_category(current_user, parent_id)
-        if parent.type != category_type:
-            raise CategoryServiceError(
-                "Parent category must have the same type as the category.",
-                400,
-            )
-        return parent
-
     def _ensure_name_available(
         self,
         current_user: User,
@@ -204,10 +168,3 @@ class CategoryService:
                 409,
             )
 
-    def _would_create_parent_cycle(self, category: Category, parent: Category) -> bool:
-        current_parent = parent
-        while current_parent is not None:
-            if current_parent.id == category.id:
-                return True
-            current_parent = current_parent.parent
-        return False

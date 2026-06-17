@@ -317,6 +317,96 @@ def test_recurrence_validates_category_type_and_preserves_income_emotion(client)
     assert income.json()["emotion"] == "felicidade"
 
 
+def test_recurrence_requires_selectable_emotion(client):
+    headers = _register_and_login(client, "Recorrencia Emocao", "rec-emotion-required@example.com")
+
+    missing = client.post(
+        "/api/recurrences/",
+        headers=headers,
+        json={
+            "type": "income",
+            "amount": "1000.00",
+            "start_date": "2026-06-10",
+        },
+    )
+    not_specified = client.post(
+        "/api/recurrences/",
+        headers=headers,
+        json={
+            "type": "income",
+            "amount": "1000.00",
+            "start_date": "2026-06-10",
+            "emotion": "not_specified",
+        },
+    )
+
+    assert missing.status_code == 422
+    assert not_specified.status_code == 422
+
+
+def test_editing_recurrence_attributes_preserves_today_transaction(client):
+    headers = _register_and_login(client, "Hoje Recorrente", "rec-today-attrs@example.com")
+    today = now_in_brasilia().date()
+    recurrence = _create_recurrence(
+        client,
+        headers,
+        amount="80.00",
+        description="Valor original",
+        start_date=today.isoformat(),
+        day_of_month=today.day,
+    ).json()
+    client.post("/api/recurrences/run-due", headers=headers, json={"through_date": today.isoformat()})
+
+    update_response = client.put(
+        f"/api/recurrences/{recurrence['id']}",
+        headers=headers,
+        json={
+            "amount": "150.00",
+            "description": "Novo valor",
+            "emotion": "calma",
+        },
+    )
+
+    assert update_response.status_code == 200
+    today_transactions = [
+        transaction
+        for transaction in client.get("/api/transactions/", headers=headers).json()
+        if transaction["date"] == today.isoformat()
+    ]
+    assert len(today_transactions) == 1
+    assert today_transactions[0]["amount"] == "80.00"
+    assert today_transactions[0]["description"] == "Valor original"
+    assert today_transactions[0]["emotion"] == "indiferenca"
+
+
+def test_editing_recurrence_schedule_preserves_today_transaction(client):
+    headers = _register_and_login(client, "Hoje Agenda", "rec-today-schedule@example.com")
+    today = now_in_brasilia().date()
+    new_day = 1 if today.day != 1 else 2
+    recurrence = _create_recurrence(
+        client,
+        headers,
+        start_date=today.isoformat(),
+        day_of_month=today.day,
+    ).json()
+    client.post("/api/recurrences/run-due", headers=headers, json={"through_date": today.isoformat()})
+
+    update_response = client.put(
+        f"/api/recurrences/{recurrence['id']}",
+        headers=headers,
+        json={"day_of_month": new_day},
+    )
+
+    assert update_response.status_code == 200
+    today_transactions = [
+        transaction
+        for transaction in client.get("/api/transactions/", headers=headers).json()
+        if transaction["date"] == today.isoformat()
+    ]
+    assert len(today_transactions) == 1
+    assert today_transactions[0]["recurrence_id"] == recurrence["id"]
+
+
 def test_deleting_category_reclassifies_recurrence_as_unspecified(client):
     headers = _register_and_login(client, "Categoria Recorrente", "rec-category@example.com")
     categories = client.get("/api/categories/", headers=headers).json()

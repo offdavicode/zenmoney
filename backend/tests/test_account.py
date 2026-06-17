@@ -83,6 +83,7 @@ def test_account_deletion_removes_user_data_and_preserves_other_users(
             "amount": "100.00",
             "date": "2026-06-11",
             "category_id": category["id"],
+            "emotion": "ansiedade",
         },
     )
     client.post(

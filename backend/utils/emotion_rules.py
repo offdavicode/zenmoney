@@ -15,10 +15,36 @@ EmotionType = Literal[
     "tedio",
 ]
 
+SelectableEmotionType = Literal[
+    "calma",
+    "felicidade",
+    "raiva",
+    "frustracao",
+    "empolgacao",
+    "ansiedade",
+    "estresse",
+    "indiferenca",
+    "satisfacao",
+    "tedio",
+]
+
 DEFAULT_EMOTION: Final[EmotionType] = "not_specified"
 
 VALID_EMOTIONS: Final[tuple[EmotionType, ...]] = (
     "not_specified",
+    "calma",
+    "felicidade",
+    "raiva",
+    "frustracao",
+    "empolgacao",
+    "ansiedade",
+    "estresse",
+    "indiferenca",
+    "satisfacao",
+    "tedio",
+)
+
+SELECTABLE_EMOTIONS: Final[tuple[SelectableEmotionType, ...]] = (
     "calma",
     "felicidade",
     "raiva",
@@ -61,11 +87,20 @@ def normalize_emotion(value: str | None) -> EmotionType:
     return cast(EmotionType, normalized)
 
 
+def normalize_required_emotion(value: str | None) -> SelectableEmotionType:
+    normalized = normalize_emotion(value)
+    if normalized == DEFAULT_EMOTION:
+        allowed = ", ".join(SELECTABLE_EMOTIONS)
+        raise ValueError(f"Emotion is required. Allowed values: {allowed}.")
+
+    return cast(SelectableEmotionType, normalized)
+
+
 def build_emotion_options() -> list[dict[str, str]]:
     return [
         {
             "value": emotion,
             "label": EMOTION_LABELS[emotion],
         }
-        for emotion in VALID_EMOTIONS
+        for emotion in SELECTABLE_EMOTIONS
     ]

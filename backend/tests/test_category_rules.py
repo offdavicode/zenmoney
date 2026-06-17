@@ -53,6 +53,7 @@ def test_default_categories_cover_all_valid_types() -> None:
     assert {row["type"] for row in rows} == set(VALID_CATEGORY_TYPES)
     assert all(row["is_default"] is True for row in rows)
     assert all(row["user_id"] is None for row in rows)
+    assert all("parent_id" not in row for row in rows)
 
 
 def test_default_categories_include_all_rf03_categories() -> None:
@@ -99,6 +100,7 @@ def test_transaction_uses_same_category_type_rule() -> None:
         type="income",
         amount=Decimal("100.00"),
         date=date(2026, 5, 29),
+        emotion="felicidade",
     )
 
     assert payload.type == "income"

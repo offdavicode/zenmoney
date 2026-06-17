@@ -5,7 +5,7 @@ from models.category import Category
 from models.transaction import Transaction
 from models.user import User
 from schemas.transaction import TransactionCreate, TransactionUpdate
-from utils.emotion_rules import DEFAULT_EMOTION, normalize_emotion
+from utils.emotion_rules import normalize_emotion
 
 
 class TransactionServiceError(Exception):

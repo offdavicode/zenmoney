@@ -47,6 +47,7 @@ def _create_transaction(
     category_id: int | None = None,
     transaction_type: str = "expense",
 ) -> dict:
+    emotion = "felicidade" if transaction_type == "income" else "calma"
     response = client.post(
         "/api/transactions/",
         headers=headers,
@@ -55,6 +56,7 @@ def _create_transaction(
             "type": transaction_type,
             "amount": amount,
             "date": transaction_date,
+            "emotion": emotion,
         },
     )
     assert response.status_code == 201
