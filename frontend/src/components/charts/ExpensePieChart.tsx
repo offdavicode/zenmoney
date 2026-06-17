@@ -1,8 +1,7 @@
 'use client';
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { useTransactions } from '@/contexts/TransactionsContext';
-import { type TransactionOut } from '@/services/transactions.service';
+import { type VisualReportItem } from '@/services/reports.service';
 import { formatCurrency } from '@/utils/formatters';
 
 const COLORS = [
@@ -12,52 +11,11 @@ const COLORS = [
 ];
 
 interface ExpensePieChartProps {
-  transactions: TransactionOut[];
+  data: VisualReportItem[];
 }
 
-export function ExpensePieChart({ transactions }: ExpensePieChartProps) {
-  const { categories } = useTransactions();
-  const expenses = transactions.filter((tx) => tx.type === 'expense');
-
-  
-  const categoryMap = new Map<number, number>();
-  expenses.forEach((tx) => {
-    if (tx.category_id !== null) {
-      const current = categoryMap.get(tx.category_id) || 0;
-      categoryMap.set(tx.category_id, current + tx.amount);
-    }
-  });
-
-  
-  const data = Array.from(categoryMap.entries())
-    .map(([categoryId, value]) => {
-      const cat = categories.find((c) => c.id === categoryId);
-      return {
-        name: cat ? cat.name : String(categoryId),
-        value,
-      };
-    })
-    .sort((a, b) => b.value - a.value);
-
-  
-  const total = data.reduce((acc, d) => acc + d.value, 0);
-  const threshold = total * 0.03;
-  const mainData: typeof data = [];
-  let othersValue = 0;
-
-  data.forEach((d) => {
-    if (d.value < threshold) {
-      othersValue += d.value;
-    } else {
-      mainData.push(d);
-    }
-  });
-
-  if (othersValue > 0) {
-    mainData.push({ name: 'Outros', value: othersValue });
-  }
-
-  if (mainData.length === 0) {
+export function ExpensePieChart({ data = [] }: ExpensePieChartProps) {
+  if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-muted text-sm">
         Sem dados de despesas
@@ -65,22 +23,27 @@ export function ExpensePieChart({ transactions }: ExpensePieChartProps) {
     );
   }
 
+  const chartData = data.map(d => ({
+    ...d,
+    total_amount: Number(d.total_amount)
+  }));
+
   return (
-    <div className="flex flex-col gap-5">
-      <div className="h-[250px] w-full">
+    <div className="flex flex-col gap-5 flex-1 justify-between">
+      <div className="h-[250px] w-full shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={mainData}
+              data={chartData}
               cx="50%"
               cy="50%"
               innerRadius={65}
               outerRadius={95}
               paddingAngle={3}
-              dataKey="value"
+              dataKey="total_amount"
               stroke="none"
             >
-              {mainData.map((_, index) => (
+              {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
@@ -97,19 +60,17 @@ export function ExpensePieChart({ transactions }: ExpensePieChartProps) {
         </ResponsiveContainer>
       </div>
 
-      
-      <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
-        {mainData.map((entry, index) => {
-          const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : 0;
+      <div className="flex flex-col gap-2 flex-1 overflow-y-auto pr-1">
+        {chartData.map((entry, index) => {
           return (
             <div key={index} className="flex items-center justify-between text-xs border-b border-border/50 pb-1.5 last:border-0 last:pb-0">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                <span className="text-secondary font-medium">{entry.name}</span>
+                <span className="text-secondary font-medium">{entry.label}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">{formatCurrency(entry.value)}</span>
-                <span className="text-muted">({pct}%)</span>
+                <span className="font-semibold text-foreground">{formatCurrency(entry.total_amount)}</span>
+                <span className="text-muted">({entry.percentage}%)</span>
               </div>
             </div>
           );

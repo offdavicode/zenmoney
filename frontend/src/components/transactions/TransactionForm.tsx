@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -9,7 +9,8 @@ import { formatCurrencyInput, parseCurrencyInput, todayISO } from '@/utils/forma
 import { useTransactions } from '@/contexts/TransactionsContext';
 import { type TransactionCreate, type TransactionOut } from '@/services/transactions.service';
 import { type RecurrenceCreate } from '@/services/recurrences.service';
-import { Repeat } from 'lucide-react';
+import { Repeat, AlertTriangle } from 'lucide-react';
+import { getSurvivalModeReport } from '@/services/reports.service';
 
 interface TransactionFormProps {
   initialDate?: string;
@@ -39,6 +40,33 @@ export function TransactionForm({ initialDate, initialEmotionId, initialTransact
     return parseInt(d.split('-')[2], 10);
   });
   const [endDate, setEndDate] = useState('');
+  const [blockedCategories, setBlockedCategories] = useState<number[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSurvivalReport() {
+      try {
+        const monthStr = date.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(monthStr)) {
+          const report = await getSurvivalModeReport({ month: monthStr });
+          if (isMounted && report && report.is_active && report.recommendations) {
+            const blocked = report.recommendations
+              .filter(rec => rec.suggest_block_new_transactions)
+              .map(rec => rec.category_id);
+            setBlockedCategories(blocked);
+          } else if (isMounted) {
+            setBlockedCategories([]);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao verificar categorias bloqueadas no formulário:', e);
+      }
+    }
+    loadSurvivalReport();
+    return () => {
+      isMounted = false;
+    };
+  }, [date]);
 
   const filteredCategories = categories.filter(c => c.type === type);
 
@@ -184,6 +212,13 @@ export function TransactionForm({ initialDate, initialEmotionId, initialTransact
         required
         options={filteredCategories.map((c) => ({ value: c.id.toString(), label: c.name }))}
       />
+
+      {categoryId !== '' && blockedCategories.includes(Number(categoryId)) && (
+        <div className="flex items-start gap-2 p-3 text-xs text-[var(--accent-amber)] bg-[var(--accent-amber)]/10 border border-[var(--accent-amber)]/20 rounded-xl animate-fade-in font-medium">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>Atenção: O bloqueio de novos lançamentos foi sugerido para esta categoria devido ao Modo Sobrevivência neste mês.</span>
+        </div>
+      )}
 
       
       <div className="flex flex-col gap-2">

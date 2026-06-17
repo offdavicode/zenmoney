@@ -157,7 +157,7 @@ class RecurrenceService:
         today = now_in_brasilia().date()
         self.db.execute(
             sa_delete(Transaction)
-            .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+            .where(Transaction.recurrence_id == recurrence.id, Transaction.date > today)
         )
 
         self.db.commit()
@@ -191,7 +191,7 @@ class RecurrenceService:
         today = now_in_brasilia().date()
         self.db.execute(
             sa_delete(Transaction)
-            .where(Transaction.recurrence_id == recurrence.id, Transaction.date >= today)
+            .where(Transaction.recurrence_id == recurrence.id, Transaction.date > today)
         )
         
         self.db.delete(recurrence)

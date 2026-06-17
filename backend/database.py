@@ -90,8 +90,7 @@ def align_stored_emotions(db: Session) -> None:
         db.execute(
             update(model)
             .where(
-                (model.type != "expense")
-                | (model.emotion.not_in(VALID_EMOTIONS))
+                model.emotion.not_in(VALID_EMOTIONS)
             )
             .values(emotion=DEFAULT_EMOTION)
         )

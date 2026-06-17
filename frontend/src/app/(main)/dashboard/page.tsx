@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTransactions } from '@/contexts/TransactionsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { ExpensePieChart } from '@/components/charts/ExpensePieChart';
 import { EmotionPieChart } from '@/components/charts/EmotionPieChart';
 import { CategoryBarChart } from '@/components/charts/CategoryBarChart';
@@ -13,6 +14,7 @@ import { SurvivalMode } from '@/components/dashboard/SurvivalMode';
 import { BalanceForecast } from '@/components/dashboard/BalanceForecast';
 import { formatCurrency } from '@/utils/formatters';
 import { ArrowDownLeft, ArrowUpRight, MoreVertical } from 'lucide-react';
+import { getVisualReport, getEmotionAnalysis, type VisualReportResponse, type EmotionSpendingAnalysisResponse, type ReportFilters } from '@/services/reports.service';
 
 export default function DashboardPage() {
   const { transactions } = useTransactions();
@@ -22,13 +24,15 @@ export default function DashboardPage() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  
   const [proportionType, setProportionType] = useState<'category' | 'emotion'>('category');
   const [rankingType, setRankingType] = useState<'category' | 'emotion'>('category');
 
-  
   const [showProportionMenu, setShowProportionMenu] = useState(false);
   const [showRankingMenu, setShowRankingMenu] = useState(false);
+
+  const [visualReport, setVisualReport] = useState<VisualReportResponse | null>(null);
+  const [emotionAnalysis, setEmotionAnalysis] = useState<EmotionSpendingAnalysisResponse | null>(null);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
 
   const now = useMemo(() => new Date(), []);
 
@@ -60,7 +64,54 @@ export default function DashboardPage() {
     return { periodStart: start, periodEnd: end };
   }, [period, customStartDate, customEndDate, now]);
 
-  
+  useEffect(() => {
+    let isMounted = true;
+    const loadReports = async () => {
+      setIsLoadingReports(true);
+      try {
+        const filters: ReportFilters = {};
+        if (period === 'current_month') {
+          const m = String(now.getMonth() + 1).padStart(2, '0');
+          filters.month = `${now.getFullYear()}-${m}`;
+        } else if (period === 'last_month') {
+          const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          filters.month = `${d.getFullYear()}-${m}`;
+        } else if (period === 'custom') {
+          if (customStartDate) filters.start_date = customStartDate;
+          if (customEndDate) filters.end_date = customEndDate;
+        } else if (period === 'last_7_days') {
+          const start = new Date(now);
+          start.setDate(start.getDate() - 7);
+          filters.start_date = start.toISOString().split('T')[0];
+          filters.end_date = now.toISOString().split('T')[0];
+        } else if (period === 'last_30_days') {
+          const start = new Date(now);
+          start.setDate(start.getDate() - 30);
+          filters.start_date = start.toISOString().split('T')[0];
+          filters.end_date = now.toISOString().split('T')[0];
+        }
+
+        const [visualRes, emotionRes] = await Promise.all([
+          getVisualReport(filters),
+          getEmotionAnalysis(filters)
+        ]);
+
+        if (isMounted) {
+          setVisualReport(visualRes);
+          setEmotionAnalysis(emotionRes);
+        }
+      } catch (error) {
+        console.error('Error loading reports', error);
+      } finally {
+        if (isMounted) setIsLoadingReports(false);
+      }
+    };
+
+    loadReports();
+    return () => { isMounted = false; };
+  }, [period, customStartDate, customEndDate, now]);
+
   const filteredTx = useMemo(() => {
     return transactions.filter(tx => {
       if (period === 'all') return true;
@@ -74,7 +125,6 @@ export default function DashboardPage() {
     });
   }, [transactions, period, periodStart, periodEnd]);
 
-  
   const incomeTxs = useMemo(() => filteredTx.filter((tx) => tx.type === 'income'), [filteredTx]);
   const expenseTxs = useMemo(() => filteredTx.filter((tx) => tx.type === 'expense'), [filteredTx]);
 
@@ -135,9 +185,9 @@ export default function DashboardPage() {
                     setCustomEndDate(val);
                   }
                 }}
-                className="h-10 rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full sm:w-36"
+                className="h-10 rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary flex-1 sm:flex-none sm:w-36"
               />
-              <span className="text-muted text-sm">até</span>
+              <span className="text-muted text-sm flex-shrink-0">até</span>
               <input
                 type="date"
                 value={customEndDate}
@@ -149,7 +199,7 @@ export default function DashboardPage() {
                     setCustomStartDate(val);
                   }
                 }}
-                className="h-10 rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full sm:w-36"
+                className="h-10 rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary flex-1 sm:flex-none sm:w-36"
               />
             </div>
           )}
@@ -160,63 +210,71 @@ export default function DashboardPage() {
       <SurvivalMode month={selectedMonth} />
 
       
+      {/* Entradas & Saídas (Lado a lado no desktop, um seguido do outro no mobile) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Card Entradas */}
+        <Card className="rounded-3xl !gap-2">
+          <div className="flex items-start justify-between">
+            <h3 className="text-sm font-medium text-muted">Entradas</h3>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-2xl font-bold text-[var(--accent-green)]">
+              {formatCurrency(totalReceitas)}
+            </p>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted">
+              {incomeTxs.length} transações no período
+            </span>
+            <span className="text-xs text-muted">
+              Maior entrada: <span className="font-semibold text-foreground">{formatCurrency(maxIncome)}</span>
+            </span>
+          </div>
+        </Card>
+
+        {/* Card Saídas */}
+        <Card className="rounded-3xl !gap-2">
+          <div className="flex items-start justify-between">
+            <h3 className="text-sm font-medium text-muted">Saídas</h3>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-2xl font-bold text-[var(--accent-red)]">
+              {formatCurrency(totalDespesas)}
+            </p>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted">
+              {expenseTxs.length} transações no período
+            </span>
+            <span className="text-xs text-muted">
+              Maior despesa: <span className="font-semibold text-foreground">{formatCurrency(maxExpense)}</span>
+            </span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Grid de 3 Colunas (Restante dos Gráficos e Previsão) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* COLUNA 1 */}
         <div className="flex flex-col gap-6">
-          {/* Card Entradas */}
-          <Card className="rounded-3xl !gap-2">
-            <div className="flex items-start justify-between">
-              <h3 className="text-sm font-medium text-muted">Entradas</h3>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <p className="text-2xl font-bold text-[var(--accent-green)]">
-                {formatCurrency(totalReceitas)}
-              </p>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted">
-                {incomeTxs.length} transações no período
-              </span>
-              <span className="text-xs text-muted">
-                Maior entrada: <span className="font-semibold text-foreground">{formatCurrency(maxIncome)}</span>
-              </span>
-            </div>
-          </Card>
-
           {/* Card Sentimento x Consumo */}
-          <Card className="rounded-3xl flex-1">
+          <Card className="rounded-3xl flex-1 flex flex-col">
             <div className="flex items-start justify-between mb-4">
               <h3 className="text-base font-bold text-foreground">Sentimento x Consumo</h3>
             </div>
-            <div className="mt-4">
-              <EmotionCrossChart transactions={filteredTx} />
+            <div className="flex-1 flex flex-col mt-4">
+              {isLoadingReports || !emotionAnalysis ? (
+                <Skeleton className="w-full h-full min-h-[300px]" />
+              ) : (
+                <EmotionCrossChart data={emotionAnalysis} />
+              )}
             </div>
           </Card>
         </div>
 
         {/* COLUNA 2 */}
         <div className="flex flex-col gap-6">
-          {/* Card Saídas */}
-          <Card className="rounded-3xl !gap-2">
-            <div className="flex items-start justify-between">
-              <h3 className="text-sm font-medium text-muted">Saídas</h3>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <p className="text-2xl font-bold text-[var(--accent-red)]">
-                {formatCurrency(totalDespesas)}
-              </p>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-muted">
-                {expenseTxs.length} transações no período
-              </span>
-              <span className="text-xs text-muted">
-                Maior despesa: <span className="font-semibold text-foreground">{formatCurrency(maxExpense)}</span>
-              </span>
-            </div>
-          </Card>
-
           {/* Card Proporção de Gastos */}
           <Card className="rounded-3xl flex-1 relative">
             <div className="flex items-start justify-between mb-4">
@@ -261,10 +319,12 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex-1 flex flex-col justify-center">
-              {proportionType === 'category' ? (
-                <ExpensePieChart transactions={filteredTx} />
+              {isLoadingReports || !visualReport ? (
+                <Skeleton className="w-full h-full min-h-[300px]" />
+              ) : proportionType === 'category' ? (
+                <ExpensePieChart data={visualReport.category_distribution.pie_items} />
               ) : (
-                <EmotionPieChart transactions={filteredTx} />
+                <EmotionPieChart data={visualReport.emotion_distribution.pie_items} />
               )}
             </div>
           </Card>
@@ -335,10 +395,12 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex-1 flex flex-col justify-center">
-              {rankingType === 'category' ? (
-                <CategoryBarChart transactions={filteredTx} />
+              {isLoadingReports || !visualReport ? (
+                <Skeleton className="w-full h-full min-h-[300px]" />
+              ) : rankingType === 'category' ? (
+                <CategoryBarChart data={visualReport.category_distribution.bar_items} />
               ) : (
-                <EmotionBarChart transactions={filteredTx} />
+                <EmotionBarChart data={visualReport.emotion_distribution.bar_items} />
               )}
             </div>
           </Card>

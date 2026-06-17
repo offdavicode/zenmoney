@@ -7,6 +7,7 @@ import { LayoutDashboard, ArrowLeftRight, Bell, User, LogOut } from 'lucide-reac
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTransactions } from '@/contexts/TransactionsContext';
 import { getSurvivalModeReport, type SurvivalModeReport } from '@/services/reports.service';
+import { getBudgetAlert } from '@/services/settings.service';
 import { SurvivalModeModal } from '@/components/dashboard/SurvivalModeModal';
 
 type Notification = {
@@ -36,6 +37,8 @@ export function Topbar() {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [survivalNotifRead, setSurvivalNotifRead] = useState(false);
+  const [budgetAlert, setBudgetAlert] = useState<any | null>(null);
+  const [budgetAlertNotifRead, setBudgetAlertNotifRead] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -68,7 +71,42 @@ export function Topbar() {
         console.error('Erro ao verificar modo sobrevivência para Topbar:', err);
       }
     }
+
+    async function checkBudgetAlerts() {
+      try {
+        const data = await getBudgetAlert();
+        if (isMounted) {
+          if (data && data.alert) {
+            const currentAlert = data.alert;
+            const stored = localStorage.getItem('zenmoney_budget_alert_last_read');
+            let isNew = true;
+            if (stored) {
+              try {
+                const parsed = JSON.parse(stored);
+                if (
+                  parsed.threshold_percent === currentAlert.threshold_percent &&
+                  parsed.scope === currentAlert.scope &&
+                  parsed.category_id === currentAlert.category_id &&
+                  parsed.spent_amount === currentAlert.spent_amount
+                ) {
+                  isNew = false;
+                }
+              } catch (e) {}
+            }
+            setBudgetAlertNotifRead(!isNew);
+          } else {
+            setBudgetAlertNotifRead(true);
+          }
+          setBudgetAlert(data?.alert || null);
+        }
+      } catch (err) {
+        console.error('Erro ao verificar alerta crítico de orçamento para Topbar:', err);
+      }
+    }
+
     checkSurvivalMode();
+    checkBudgetAlerts();
+
     return () => {
       isMounted = false;
     };
@@ -84,11 +122,28 @@ export function Topbar() {
     }
   };
 
-  useEffect(() => {
-    if (showNotifMenu && survivalReport?.is_active) {
-      markSurvivalAsRead();
+  const markBudgetAlertAsRead = () => {
+    setBudgetAlertNotifRead(true);
+    if (budgetAlert) {
+      localStorage.setItem('zenmoney_budget_alert_last_read', JSON.stringify({
+        threshold_percent: budgetAlert.threshold_percent,
+        scope: budgetAlert.scope,
+        category_id: budgetAlert.category_id,
+        spent_amount: budgetAlert.spent_amount
+      }));
     }
-  }, [showNotifMenu, survivalReport]);
+  };
+
+  useEffect(() => {
+    if (showNotifMenu) {
+      if (survivalReport?.is_active) {
+        markSurvivalAsRead();
+      }
+      if (budgetAlert) {
+        markBudgetAlertAsRead();
+      }
+    }
+  }, [showNotifMenu, survivalReport, budgetAlert]);
 
   const displayNotifications = useMemo(() => {
     const list = [...notifications];
@@ -100,14 +155,26 @@ export function Topbar() {
         time: 'Agora mesmo'
       });
     }
+    if (budgetAlert) {
+      list.unshift({
+        id: 'budget-critical-alert-notif',
+        message: budgetAlert.message,
+        read: budgetAlertNotifRead,
+        time: 'Alerta Crítico'
+      });
+    }
     return list;
-  }, [notifications, survivalReport, survivalNotifRead]);
+  }, [notifications, survivalReport, survivalNotifRead, budgetAlert, budgetAlertNotifRead]);
 
   const hasUnread = displayNotifications.some(n => !n.read);
 
   const markAsRead = (id: string) => {
     if (id === 'survival-mode-notif') {
       markSurvivalAsRead();
+      return;
+    }
+    if (id === 'budget-critical-alert-notif') {
+      markBudgetAlertAsRead();
       return;
     }
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -118,6 +185,9 @@ export function Topbar() {
       setIsSurvivalModalOpen(true);
       setShowNotifMenu(false);
       markSurvivalAsRead();
+    } else if (notif.id === 'budget-critical-alert-notif') {
+      setShowNotifMenu(false);
+      markBudgetAlertAsRead();
     } else {
       markAsRead(notif.id);
     }
@@ -185,7 +255,7 @@ export function Topbar() {
             </button>
 
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-border bg-surface p-2 shadow-lg animate-fade-in z-50">
+              <div className="fixed inset-x-4 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 rounded-2xl border border-border bg-surface p-2 shadow-lg animate-fade-in z-50">
                 <div className="px-3 py-2 border-b border-border mb-2 flex justify-between items-center">
                   <p className="text-sm font-medium text-foreground">Notificações</p>
                   {hasUnread && (

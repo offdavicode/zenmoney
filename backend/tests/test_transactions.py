@@ -111,7 +111,7 @@ def test_user_cannot_access_another_users_transaction(client):
     assert forbidden_get_response.json()["detail"] == "Transaction not found."
 
 
-def test_income_is_always_saved_without_emotion(client):
+def test_income_preserves_emotion(client):
     token = _register_and_login(client, "Receita Sem Emocao", "receita@example.com")
     headers = _auth_headers(token)
 
@@ -127,10 +127,10 @@ def test_income_is_always_saved_without_emotion(client):
     )
 
     assert response.status_code == 201
-    assert response.json()["emotion"] == "not_specified"
+    assert response.json()["emotion"] == "felicidade"
 
 
-def test_changing_expense_to_income_removes_emotion(client):
+def test_changing_expense_to_income_preserves_emotion(client):
     token = _register_and_login(client, "Mudanca de Tipo", "mudanca@example.com")
     headers = _auth_headers(token)
 
@@ -153,7 +153,7 @@ def test_changing_expense_to_income_removes_emotion(client):
 
     assert update_response.status_code == 200
     assert update_response.json()["type"] == "income"
-    assert update_response.json()["emotion"] == "not_specified"
+    assert update_response.json()["emotion"] == "ansiedade"
 
 
 def test_transactions_require_authentication(client):

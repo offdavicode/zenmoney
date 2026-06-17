@@ -5,10 +5,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile, updatePassword } from '@/services/settings.service';
+import { updateProfile, updatePassword, deleteAccount } from '@/services/settings.service';
+import { Modal } from '@/components/ui/Modal';
 
 export function ProfileSection() {
-  const { user, loadUser } = useAuth();
+  const { user, loadUser, logout } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -22,6 +23,11 @@ export function ProfileSection() {
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [pwdMsg, setPwdMsg] = useState('');
   const [pwdError, setPwdError] = useState('');
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -66,9 +72,23 @@ export function ProfileSection() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount({ current_password: deleteConfirmPassword });
+      setIsDeleteModalOpen(false);
+      await logout();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Erro ao excluir conta.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <Card className="p-6 md:p-8">
-      
+
       <div className="flex items-center gap-4 border-b border-border pb-5 mb-5">
         <div>
           <h2 className="text-lg font-bold text-foreground">Dados Cadastrais</h2>
@@ -77,7 +97,7 @@ export function ProfileSection() {
       </div>
 
       <div className="flex flex-col gap-6">
-        
+
         {profileError && (
           <div className="p-3 text-sm text-[var(--accent-red)] bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 rounded-xl animate-fade-in flex items-center gap-2 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-red)] shrink-0 animate-pulse" />
@@ -91,7 +111,7 @@ export function ProfileSection() {
           </div>
         )}
 
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Input
             label="Nome completo"
@@ -116,7 +136,7 @@ export function ProfileSection() {
           </Button>
         </div>
 
-        
+
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -194,7 +214,73 @@ export function ProfileSection() {
             </div>
           )}
         </div>
+
+        <div className="flex flex-col gap-4 border-t border-border pt-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Exclua sua conta</h3>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-[var(--accent-red)] text-[var(--accent-red)] hover:bg-[var(--accent-red)]/10 hover:text-[var(--accent-red)]"
+              onClick={() => {
+                setDeleteConfirmPassword('');
+                setDeleteError('');
+                setIsDeleteModalOpen(true);
+              }}
+            >
+              Excluir conta
+            </Button>
+          </div>
+        </div>
+
       </div>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Excluir Conta">
+        <div className="flex flex-col gap-4">
+          <div className="p-3 text-sm text-[var(--accent-red)] bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 rounded-xl font-medium">
+            <h4 className="font-bold mb-1">Atenção!</h4>
+            <p className="text-xs leading-normal">
+              Esta ação é permanente e irreversível. Todos os seus dados, lançamentos, limites e configurações serão excluídos definitivamente.
+            </p>
+          </div>
+
+          {deleteError && (
+            <div className="p-3 text-sm text-[var(--accent-red)] bg-[var(--accent-red)]/10 border border-[var(--accent-red)]/20 rounded-xl animate-fade-in flex items-center gap-2 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-red)] shrink-0 animate-pulse" />
+              <span>{deleteError}</span>
+            </div>
+          )}
+
+          <Input
+            label="Confirme sua senha atual para continuar"
+            type="password"
+            value={deleteConfirmPassword}
+            onChange={e => setDeleteConfirmPassword(e.target.value)}
+            placeholder="Digite sua senha"
+          />
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-[var(--accent-red)] hover:bg-[var(--accent-red)]/90 text-white"
+              onClick={handleDeleteAccount}
+              isLoading={isDeletingAccount}
+              disabled={!deleteConfirmPassword}
+              size="sm"
+            >
+              Excluir Definitivamente
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }

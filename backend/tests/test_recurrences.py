@@ -293,7 +293,7 @@ def test_deleting_recurrence_preserves_generated_transactions(client):
     assert transactions[0]["is_recurring"] is True
 
 
-def test_recurrence_validates_category_type_and_normalizes_income_emotion(client):
+def test_recurrence_validates_category_type_and_preserves_income_emotion(client):
     headers = _register_and_login(client, "Validacao Recorrente", "rec-validation@example.com")
     categories = client.get("/api/categories/", headers=headers).json()
     expense_category = next(category for category in categories if category["name"] == "Alimentacao")
@@ -314,7 +314,7 @@ def test_recurrence_validates_category_type_and_normalizes_income_emotion(client
         emotion="felicidade",
     )
     assert income.status_code == 201
-    assert income.json()["emotion"] == "not_specified"
+    assert income.json()["emotion"] == "felicidade"
 
 
 def test_deleting_category_reclassifies_recurrence_as_unspecified(client):
