@@ -157,8 +157,48 @@ export async function getTriggers(filters?: ReportFilters): Promise<SpendingTrig
   return apiGet<SpendingTriggerItem[]>(`/reports/triggers${buildQuery(filters)}`);
 }
 
-export async function getEmotionAnalysis(filters?: ReportFilters) {
-  return apiGet(`/reports/emotion-spending-analysis${buildQuery(filters)}`);
+export interface EmotionTriggerAnalysis {
+  emotion: string;
+  emotion_label: string;
+  role: 'reference' | 'candidate' | 'not_informed';
+  transaction_count: number;
+  total_amount: number;
+  average_amount: number;
+  reference_transaction_count: number;
+  reference_average_amount: number;
+  difference_percentage: number | null;
+  overall_average_amount: number;
+  difference_from_overall_percentage: number | null;
+  sufficient_data: boolean;
+  is_trigger: boolean;
+  reason: string;
+}
+
+export interface EmotionSpendingAnalysisResponse {
+  period: { month?: string; start_date?: string; end_date?: string };
+  conclusions_enabled: boolean;
+  minimum_transactions: number;
+  trigger_threshold_percentage: number;
+  reference_emotions: string[];
+  candidate_emotions: string[];
+  overall_statistics: {
+    transaction_count: number;
+    total_amount: number;
+    average_amount: number;
+  };
+  reference_statistics: {
+    transaction_count: number;
+    total_amount: number;
+    average_amount: number;
+  };
+  emotion_analysis: EmotionTriggerAnalysis[];
+  category_distribution: SpendingTriggerItem[];
+  category_triggers: any[];
+  details_by_emotion: any[];
+}
+
+export async function getEmotionAnalysis(filters?: ReportFilters): Promise<EmotionSpendingAnalysisResponse> {
+  return apiGet<EmotionSpendingAnalysisResponse>(`/reports/emotion-spending-analysis${buildQuery(filters)}`);
 }
 
 export async function getSurvivalModeReport(filters?: ReportFilters): Promise<SurvivalModeReport> {

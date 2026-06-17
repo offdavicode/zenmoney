@@ -32,17 +32,17 @@ VALID_EMOTIONS: Final[tuple[EmotionType, ...]] = (
 )
 
 EMOTION_LABELS: Final[dict[EmotionType, str]] = {
-    "not_specified": "Nao especificada",
+    "not_specified": "Não especificada",
     "calma": "Calma",
     "felicidade": "Felicidade",
     "raiva": "Raiva",
-    "frustracao": "Frustracao",
-    "empolgacao": "Empolgacao",
+    "frustracao": "Frustração",
+    "empolgacao": "Empolgação",
     "ansiedade": "Ansiedade",
     "estresse": "Estresse",
-    "indiferenca": "Indiferenca",
-    "satisfacao": "Satisfacao",
-    "tedio": "Tedio",
+    "indiferenca": "Indiferença",
+    "satisfacao": "Satisfação",
+    "tedio": "Tédio",
 }
 
 

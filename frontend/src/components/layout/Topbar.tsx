@@ -185,7 +185,7 @@ export function Topbar() {
             </button>
 
             {showNotifMenu && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-border bg-surface p-2 shadow-lg animate-fade-in z-50">
+              <div className="fixed inset-x-4 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 rounded-2xl border border-border bg-surface p-2 shadow-lg animate-fade-in z-50">
                 <div className="px-3 py-2 border-b border-border mb-2 flex justify-between items-center">
                   <p className="text-sm font-medium text-foreground">Notificações</p>
                   {hasUnread && (
