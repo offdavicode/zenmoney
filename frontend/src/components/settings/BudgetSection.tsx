@@ -9,7 +9,12 @@ import { getBudget, updateBudget, BudgetOut, CategoryLimitInput, getSurvivalMode
 import { listCategories, CategoryOut } from '@/services/categories.service';
 import { useTransactions } from '@/contexts/TransactionsContext';
 
-export function BudgetSection() {
+interface BudgetSectionProps {
+  onStateChange: (state: { hasChanges: boolean; isValid: boolean }) => void;
+  saveRef: React.MutableRefObject<{ save: () => Promise<void>; discard: () => void } | null>;
+}
+
+export function BudgetSection({ onStateChange, saveRef }: BudgetSectionProps) {
   const { notifyBudgetUpdated } = useTransactions();
   const [budget, setBudget] = useState<BudgetOut | null>(null);
   const [globalLimit, setGlobalLimit] = useState(0);
@@ -25,7 +30,9 @@ export function BudgetSection() {
   
   const [survivalPercent, setSurvivalPercent] = useState<number>(80);
   const [survivalMsg, setSurvivalMsg] = useState('');
-  const [isSavingSurvival, setIsSavingSurvival] = useState(false);
+
+  const [initialGlobalLimit, setInitialGlobalLimit] = useState(0);
+  const [initialSurvivalPercent, setInitialSurvivalPercent] = useState(80);
 
   const loadData = async () => {
     try {
@@ -36,11 +43,15 @@ export function BudgetSection() {
       ]);
       setBudget(budgetData);
       setCategories(catData);
-      setSurvivalPercent(survivalData.activation_percentage);
+      
+      const valPercent = survivalData.activation_percentage;
+      setSurvivalPercent(valPercent);
+      setInitialSurvivalPercent(valPercent);
       
       const gl = budgetData.global_limit?.limit_amount || 0;
       setGlobalLimit(gl);
       setGlobalLimitRaw(formatCurrencyInput(gl));
+      setInitialGlobalLimit(gl);
     } catch (e) {
       console.error(e);
     }
@@ -50,25 +61,83 @@ export function BudgetSection() {
     loadData();
   }, []);
 
+  const hasChanges = globalLimit !== initialGlobalLimit || survivalPercent !== initialSurvivalPercent;
+  const isGlobalLimitValid = globalLimit > 0;
+  const isSurvivalPercentValid = survivalPercent >= 50 && survivalPercent <= 90;
+  const isValid = (!hasChanges) || (isGlobalLimitValid && isSurvivalPercentValid);
+
+  useEffect(() => {
+    onStateChange({ hasChanges, isValid });
+  }, [hasChanges, isValid, onStateChange]);
+
+  useEffect(() => {
+    saveRef.current = {
+      save: async () => {
+        setMsg('');
+        setSurvivalMsg('');
+        
+        let errorMessages: string[] = [];
+        let updatedAny = false;
+
+        if (globalLimit !== initialGlobalLimit) {
+          if (globalLimit <= 0) {
+            const err = 'O limite global deve ser maior que zero.';
+            setMsg(err);
+            errorMessages.push(err);
+          } else {
+            try {
+              await updateBudget({ global_limit: globalLimit });
+              setMsg('Limite global atualizado!');
+              updatedAny = true;
+            } catch (e: any) {
+              const err = e.message || 'Erro ao salvar limite global.';
+              setMsg(err);
+              errorMessages.push(err);
+            }
+          }
+        }
+
+        if (survivalPercent !== initialSurvivalPercent) {
+          if (survivalPercent < 50 || survivalPercent > 90) {
+            const err = 'O gatilho do modo sobrevivência deve ser entre 50% e 90%.';
+            setSurvivalMsg(err);
+            errorMessages.push(err);
+          } else {
+            try {
+              await updateSurvivalModeConfig({ activation_percentage: survivalPercent });
+              setSurvivalMsg('Gatilho do Modo Sobrevivência atualizado!');
+              updatedAny = true;
+            } catch (e: any) {
+              const err = e.message || 'Erro ao salvar gatilho do modo sobrevivência.';
+              setSurvivalMsg(err);
+              errorMessages.push(err);
+            }
+          }
+        }
+
+        if (errorMessages.length > 0) {
+          throw new Error(errorMessages.join(' | '));
+        }
+
+        if (updatedAny) {
+          await loadData();
+          notifyBudgetUpdated();
+        }
+      },
+      discard: () => {
+        setMsg('');
+        setSurvivalMsg('');
+        setGlobalLimit(initialGlobalLimit);
+        setGlobalLimitRaw(formatCurrencyInput(initialGlobalLimit));
+        setSurvivalPercent(initialSurvivalPercent);
+      }
+    };
+  }, [globalLimit, initialGlobalLimit, survivalPercent, initialSurvivalPercent, notifyBudgetUpdated]);
+
   const handleGlobalLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = parseCurrencyInput(e.target.value);
     setGlobalLimit(parsed);
     setGlobalLimitRaw(formatCurrencyInput(parsed));
-  };
-
-  const handleSaveGlobalLimit = async () => {
-    setIsSaving(true);
-    try {
-      await updateBudget({ global_limit: globalLimit });
-      setMsg('Limite global atualizado!');
-      setTimeout(() => setMsg(''), 3000);
-      await loadData();
-      notifyBudgetUpdated();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleAddCategoryLimit = async () => {
@@ -122,22 +191,6 @@ export function BudgetSection() {
     }
   };
 
-  const handleSaveSurvivalConfig = async () => {
-    if (survivalPercent < 50 || survivalPercent > 90) return;
-    setIsSavingSurvival(true);
-    try {
-      await updateSurvivalModeConfig({ activation_percentage: survivalPercent });
-      setSurvivalMsg('Gatilho do Modo Sobrevivência atualizado!');
-      setTimeout(() => setSurvivalMsg(''), 3000);
-      await loadData();
-      notifyBudgetUpdated();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSavingSurvival(false);
-    }
-  };
-
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
@@ -150,22 +203,17 @@ export function BudgetSection() {
       <div className="flex flex-col gap-6">
         <div className="flex w-full flex-col gap-2">
           <label className="text-sm font-medium text-foreground">Limite Global Mensal</label>
-          <div className="flex gap-2 items-center">
-            <div className="relative max-w-sm flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">
-                R$
-              </span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={globalLimitRaw}
-                onChange={handleGlobalLimitChange}
-                className="flex h-10 w-full rounded-md border border-border bg-surface pl-10 pr-3 py-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              />
-            </div>
-            <Button onClick={handleSaveGlobalLimit} isLoading={isSaving} disabled={globalLimit <= 0}>
-              Salvar Limite
-            </Button>
+          <div className="relative max-w-sm">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">
+              R$
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={globalLimitRaw}
+              onChange={handleGlobalLimitChange}
+              className="flex h-10 w-full rounded-md border border-border bg-surface pl-10 pr-3 py-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            />
           </div>
           {globalLimit <= 0 && (
             <span className="text-xs text-[var(--accent-red)]">O limite deve ser maior que zero.</span>
@@ -246,23 +294,18 @@ export function BudgetSection() {
           <p className="text-xs text-muted font-medium mt-0.5">
             Defina a porcentagem de consumo do limite (global ou por categoria) que ativa o Modo Sobrevivência.
           </p>
-          <div className="flex gap-2 items-center mt-2">
-            <div className="relative max-w-sm flex-1">
-              <input
-                type="number"
-                min={50}
-                max={90}
-                value={survivalPercent || ''}
-                onChange={(e) => setSurvivalPercent(Number(e.target.value))}
-                className="flex h-10 w-full rounded-md border border-border bg-surface pl-3 pr-8 py-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">
-                %
-              </span>
-            </div>
-            <Button onClick={handleSaveSurvivalConfig} isLoading={isSavingSurvival} disabled={survivalPercent < 50 || survivalPercent > 90}>
-              Salvar Gatilho
-            </Button>
+          <div className="relative max-w-sm mt-2">
+            <input
+              type="number"
+              min={50}
+              max={90}
+              value={survivalPercent || ''}
+              onChange={(e) => setSurvivalPercent(Number(e.target.value))}
+              className="flex h-10 w-full rounded-md border border-border bg-surface pl-3 pr-8 py-2 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">
+              %
+            </span>
           </div>
           {survivalPercent < 50 || survivalPercent > 90 ? (
             <span className="text-xs text-[var(--accent-red)]">O gatilho deve ser entre 50% e 90%.</span>
