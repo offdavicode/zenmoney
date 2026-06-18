@@ -423,11 +423,11 @@ class ReportService:
     ) -> ReportFilters:
         if month is not None and (start_date is not None or end_date is not None):
             raise ReportServiceError(
-                "Use either month or start_date/end_date, not both.",
+                "Use o mês ou a data de início/fim, mas não ambos.",
                 400,
             )
         if start_date is not None and end_date is not None and start_date > end_date:
-            raise ReportServiceError("start_date must be before or equal to end_date.", 400)
+            raise ReportServiceError("A data de início deve ser anterior ou igual à data de fim.", 400)
 
         resolved_start = start_date
         resolved_end = end_date
@@ -467,7 +467,7 @@ class ReportService:
         )
         category = self.db.scalar(statement)
         if category is None:
-            raise ReportServiceError("Expense category not found.", 404)
+            raise ReportServiceError("Categoria de despesa não encontrada.", 404)
         return category
 
     def _build_category_report_base(

@@ -122,13 +122,13 @@ class CategoryService:
         )
         category = self.db.scalar(statement)
         if category is None:
-            raise CategoryServiceError("Category not found.", 404)
+            raise CategoryServiceError("Categoria não encontrada.", 404)
         return category
 
     def _get_mutable_category(self, current_user: User, category_id: int) -> Category:
         category = self._get_accessible_category(current_user, category_id)
         if category.is_default or category.user_id is None:
-            raise CategoryServiceError("Default categories cannot be modified.", 403)
+            raise CategoryServiceError("Categorias padrão não podem ser modificadas.", 403)
         return category
 
     def _get_unspecified_category(self, category_type: str) -> Category:
@@ -141,7 +141,7 @@ class CategoryService:
         category = self.db.scalar(statement)
         if category is None:
             raise CategoryServiceError(
-                "Default unspecified category is not configured.",
+                "A categoria padrão não especificada não está configurada.",
                 500,
             )
         return category
@@ -164,7 +164,7 @@ class CategoryService:
         existing_category = self.db.scalar(statement)
         if existing_category is not None:
             raise CategoryServiceError(
-                "A category with this name already exists for this type.",
+                "Já existe uma categoria com este nome para este tipo.",
                 409,
             )
 

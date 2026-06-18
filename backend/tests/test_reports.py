@@ -73,7 +73,7 @@ def test_reports_require_authentication(client, path):
     response = client.get(path)
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Authentication credentials were not provided."
+    assert response.json()["detail"] == "Credenciais de autenticação não foram fornecidas."
 
 
 def test_summary_report_returns_zeroed_values_without_transactions(client):
@@ -552,15 +552,15 @@ def test_report_accepts_maximum_supported_end_date(client):
     [
         (
             "month=2026-06&start_date=2026-06-01",
-            "Use either month or start_date/end_date, not both.",
+            "Use o mês ou a data de início/fim, mas não ambos.",
         ),
         (
             "start_date=2026-06-20&end_date=2026-06-10",
-            "start_date must be before or equal to end_date.",
+            "A data de início deve ser anterior ou igual à data de fim.",
         ),
         (
             "month=2026-13",
-            "Month must use YYYY-MM format.",
+            "O mês deve usar o formato AAAA-MM.",
         ),
     ],
 )
@@ -619,7 +619,7 @@ def test_report_category_filter_only_includes_selected_accessible_category(clien
     ]
 
     assert inaccessible_response.status_code == 404
-    assert inaccessible_response.json()["detail"] == "Expense category not found."
+    assert inaccessible_response.json()["detail"] == "Categoria de despesa não encontrada."
 
 
 def test_emotion_insight_requires_five_specified_expenses_in_period(client):

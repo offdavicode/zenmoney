@@ -18,7 +18,7 @@ def get_current_user(
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication credentials were not provided.",
+            detail="Credenciais de autenticação não foram fornecidas.",
         )
 
     try:
@@ -35,7 +35,7 @@ def get_current_user(
     if token_jti is None or subject is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token.",
+            detail="Token de autenticação inválido.",
         )
 
     revoked_token = db.scalar(
@@ -44,14 +44,14 @@ def get_current_user(
     if revoked_token is not None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked.",
+            detail="O token foi revogado.",
         )
 
     user = db.get(User, int(subject))
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authenticated user was not found.",
+            detail="Usuário autenticado não foi encontrado.",
         )
 
     return user
@@ -63,7 +63,7 @@ def get_current_token(
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication credentials were not provided.",
+            detail="Credenciais de autenticação não foram fornecidas.",
         )
     return credentials.credentials
 

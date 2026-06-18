@@ -108,7 +108,7 @@ def test_user_cannot_access_another_users_transaction(client):
         headers=second_headers,
     )
     assert forbidden_get_response.status_code == 404
-    assert forbidden_get_response.json()["detail"] == "Transaction not found."
+    assert forbidden_get_response.json()["detail"] == "Transação não encontrada."
 
 
 def test_income_preserves_emotion(client):
@@ -159,7 +159,7 @@ def test_changing_expense_to_income_preserves_emotion(client):
 def test_transactions_require_authentication(client):
     response = client.get("/api/transactions/")
     assert response.status_code == 401
-    assert response.json()["detail"] == "Authentication credentials were not provided."
+    assert response.json()["detail"] == "Credenciais de autenticação não foram fornecidas."
 
 
 def test_transaction_can_use_default_category(client):
@@ -232,7 +232,7 @@ def test_transaction_rejects_incompatible_category_type(client):
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Category not found or incompatible with the transaction type."
+    assert response.json()["detail"] == "Categoria não encontrada ou incompatível com o tipo de transação."
 
 
 def test_user_cannot_use_another_users_category_in_transaction(client):
@@ -264,7 +264,7 @@ def test_user_cannot_use_another_users_category_in_transaction(client):
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Category not found or incompatible with the transaction type."
+    assert response.json()["detail"] == "Categoria não encontrada ou incompatível com o tipo de transação."
 
 
 def test_transaction_update_rejects_type_that_conflicts_with_current_category(client):
@@ -292,7 +292,8 @@ def test_transaction_update_rejects_type_that_conflicts_with_current_category(cl
     )
 
     assert update_response.status_code == 404
-    assert update_response.json()["detail"] == "Category not found or incompatible with the transaction type."
+    assert update_response.status_code == 404
+    assert update_response.json()["detail"] == "Categoria não encontrada ou incompatível com o tipo de transação."
 
 
 def test_transaction_category_can_be_removed_on_update(client):

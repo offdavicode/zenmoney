@@ -200,8 +200,7 @@ def test_completed_recurrence_cannot_be_resumed(client):
 
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "Recurrence cannot be resumed because no future occurrence "
-        "exists before its end date."
+        "A recorrência não pode ser retomada porque não há ocorrências futuras antes da sua data de término."
     )
 
 

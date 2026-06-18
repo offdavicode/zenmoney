@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { type EmotionSpendingAnalysisResponse } from '@/services/reports.service';
 import { EMOTIONS } from '@/utils/constants';
@@ -11,6 +12,11 @@ interface EmotionCrossChartProps {
 }
 
 export function EmotionCrossChart({ data }: EmotionCrossChartProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (!data || !data.emotion_analysis) {
     return (
       <div className="flex items-center justify-center h-48 text-muted text-sm">
@@ -48,72 +54,76 @@ export function EmotionCrossChart({ data }: EmotionCrossChartProps) {
 
   return (
     <div className="flex flex-col gap-4 flex-1">
-      <div className="flex-1 min-h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ left: 10, right: 20 }}>
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={(v: number) => `R$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
-              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              formatter={(value: any, name: any) => [
-                formatCurrency(Number(value)),
-                name === 'total' ? 'Total' : 'Média',
-              ]}
-              contentStyle={{
-                backgroundColor: 'var(--surface)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '12px',
-                fontSize: '13px',
-              }}
-              cursor={{ fill: 'var(--surface-hover)', radius: 6 }}
-            />
-            <Legend
-              content={(props) => {
-                const { payload } = props;
-                return (
-                  <div className="flex justify-center gap-6 mt-4">
-                    {payload?.map((entry: any, index: number) => {
-                      const isTotal = entry.value === 'total';
-                      return (
-                        <div key={`item-${index}`} className="flex items-center gap-2">
-                          <span 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ 
-                              backgroundColor: 'var(--text-secondary)', 
-                              opacity: isTotal ? 0.8 : 0.4 
-                            }} 
-                          />
-                          <span className="text-xs text-secondary font-medium">
-                            {isTotal ? 'Total gasto' : 'Média por transação'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              }}
-            />
-            <Bar dataKey="total" radius={[6, 6, 0, 0]} barSize={24}>
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} opacity={0.8} />
-              ))}
-            </Bar>
-            <Bar dataKey="average" radius={[6, 6, 0, 0]} barSize={16}>
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-avg-${index}`} fill={entry.color} opacity={0.4} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="flex-1 min-h-75 w-full">
+        {mounted ? (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <BarChart data={chartData} margin={{ left: 10, right: 20 }}>
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={(v: number) => `R$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+                tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                formatter={(value: any, name: any) => [
+                  formatCurrency(Number(value)),
+                  name === 'total' ? 'Total' : 'Média',
+                ]}
+                contentStyle={{
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  fontSize: '13px',
+                }}
+                cursor={{ fill: 'var(--surface-hover)', radius: 6 }}
+              />
+              <Legend
+                content={(props) => {
+                  const { payload } = props;
+                  return (
+                    <div className="flex justify-center gap-6 mt-4">
+                      {payload?.map((entry: any, index: number) => {
+                        const isTotal = entry.value === 'total';
+                        return (
+                          <div key={`item-${index}`} className="flex items-center gap-2">
+                            <span 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ 
+                                backgroundColor: 'var(--text-secondary)', 
+                                opacity: isTotal ? 0.8 : 0.4 
+                              }} 
+                            />
+                            <span className="text-xs text-secondary font-medium">
+                              {isTotal ? 'Total gasto' : 'Média por transação'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }}
+              />
+              <Bar dataKey="total" radius={[6, 6, 0, 0]} barSize={24}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} opacity={0.8} />
+                ))}
+              </Bar>
+              <Bar dataKey="average" radius={[6, 6, 0, 0]} barSize={16}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-avg-${index}`} fill={entry.color} opacity={0.4} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full w-full" />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 border-t border-border pt-3 shrink-0">
@@ -128,10 +138,10 @@ export function EmotionCrossChart({ data }: EmotionCrossChartProps) {
       </div>
 
       {triggers.length > 0 && (
-        <div className="rounded-xl border border-[var(--accent-amber)]/30 bg-[var(--accent-amber)]/5 p-4 shrink-0">
+        <div className="rounded-xl border border-(--accent-amber)/30 bg-(--accent-amber)/5 p-4 shrink-0">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} className="text-[var(--accent-amber)]" />
-            <h4 className="text-sm font-semibold text-[var(--accent-amber)]">Gatilhos de Gasto Detectados</h4>
+            <AlertTriangle size={16} className="text-(--accent-amber)" />
+            <h4 className="text-sm font-semibold text-(--accent-amber)">Gatilhos de Gasto Detectados</h4>
           </div>
           <ul className="flex flex-col gap-1.5">
             {triggers.map((t) => {
@@ -139,7 +149,7 @@ export function EmotionCrossChart({ data }: EmotionCrossChartProps) {
                 <li key={t.emotion} className="text-sm text-secondary">
                   <span className="font-medium">{t.emotion_label}</span>: média de{' '}
                   <span className="font-semibold text-foreground">{formatCurrency(Number(t.average_amount))}</span>{' '}
-                  por transação — <span className="text-[var(--accent-red)] font-medium">{t.difference_percentage}% acima</span> da média em emoções neutras.
+                  por transação — <span className="text-(--accent-red) font-medium">{t.difference_percentage}% acima</span> da média em emoções neutras.
                 </li>
               );
             })}

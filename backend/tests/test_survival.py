@@ -439,4 +439,4 @@ def test_survival_mode_rejects_invalid_month(client):
     response = client.get("/api/reports/survival-mode?month=2026-13", headers=headers)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Month must use YYYY-MM format."
+    assert response.json()["detail"] == "O mês deve usar o formato AAAA-MM."

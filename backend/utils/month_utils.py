@@ -17,7 +17,7 @@ def parse_month_label(month: str | None) -> tuple[str, date, date]:
         month_number = int(month_text)
         start = date(year, month_number, 1)
     except ValueError as exc:
-        raise ValueError("Month must use YYYY-MM format.") from exc
+        raise ValueError("O mês deve usar o formato AAAA-MM.") from exc
 
     if month_number == 12:
         end = date(year + 1, 1, 1)

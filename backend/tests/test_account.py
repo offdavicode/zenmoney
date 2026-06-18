@@ -44,7 +44,7 @@ def test_account_deletion_rejects_incorrect_password(client):
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Current password is incorrect."
+    assert response.json()["detail"] == "A senha atual está incorreta."
     assert client.get("/api/auth/me", headers=headers).status_code == 200
 
 
@@ -59,7 +59,7 @@ def test_account_deletion_rejects_password_above_bcrypt_byte_limit(client):
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Current password is incorrect."
+    assert response.json()["detail"] == "A senha atual está incorreta."
     assert client.get("/api/auth/me", headers=headers).status_code == 200
 
 
@@ -118,7 +118,7 @@ def test_account_deletion_removes_user_data_and_preserves_other_users(
 
     assert response.status_code == 200
     assert response.json()["message"] == (
-        "Account and all associated data were permanently deleted."
+        "A conta e todos os dados associados foram excluídos permanentemente."
     )
     assert client.get("/api/auth/me", headers=deleted_headers).status_code == 401
     assert client.get("/api/auth/me", headers=preserved_headers).status_code == 200

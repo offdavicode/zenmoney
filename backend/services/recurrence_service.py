@@ -81,7 +81,7 @@ class RecurrenceService:
             next_day_of_month = next_start_date.day
 
         if next_end_date is not None and next_end_date < next_start_date:
-            raise RecurrenceServiceError("End date must be on or after start date.", 400)
+            raise RecurrenceServiceError("A data de fim deve ser posterior ou igual à data de início.", 400)
 
         schedule_changed = (
             next_start_date != recurrence.start_date
@@ -173,8 +173,7 @@ class RecurrenceService:
         next_run_date = first_scheduled_on_or_after(reference_date, recurrence.day_of_month)
         if recurrence.end_date is not None and next_run_date > recurrence.end_date:
             raise RecurrenceServiceError(
-                "Recurrence cannot be resumed because no future occurrence "
-                "exists before its end date.",
+                "A recorrência não pode ser retomada porque não há ocorrências futuras antes da sua data de término.",
                 400,
             )
 
@@ -272,7 +271,7 @@ class RecurrenceService:
             )
         )
         if recurrence is None:
-            raise RecurrenceServiceError("Recurrence not found.", 404)
+            raise RecurrenceServiceError("Recorrência não encontrada.", 404)
         return recurrence
 
     def _resolve_category(
@@ -293,7 +292,7 @@ class RecurrenceService:
         )
         if category is None:
             raise RecurrenceServiceError(
-                "Category not found or incompatible with the recurrence type.",
+                "Categoria não encontrada ou incompatível com o tipo de recorrência.",
                 404,
             )
         return category
@@ -305,7 +304,7 @@ class RecurrenceService:
     ) -> None:
         if end_date is not None and next_run_date > end_date:
             raise RecurrenceServiceError(
-                "The schedule has no occurrence on or before the end date.",
+                "O agendamento não possui nenhuma ocorrência na data de término ou antes dela.",
                 400,
             )
 

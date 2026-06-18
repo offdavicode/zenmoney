@@ -49,7 +49,7 @@ def test_category_routes_require_authentication(client, method, path, json_paylo
     response = request(path, json=json_payload) if json_payload is not None else request(path)
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Authentication credentials were not provided."
+    assert response.json()["detail"] == "Credenciais de autenticação não foram fornecidas."
 
 
 def test_authenticated_user_can_list_default_categories(client):
@@ -221,7 +221,7 @@ def test_category_creation_rejects_duplicate_accessible_name(client):
     assert duplicate_default_response.status_code == 409
     assert (
         duplicate_default_response.json()["detail"]
-        == "A category with this name already exists for this type."
+        == "Já existe uma categoria com este nome para este tipo."
     )
 
     first_response = client.post(
@@ -266,9 +266,9 @@ def test_default_categories_cannot_be_modified(client):
     )
 
     assert update_response.status_code == 403
-    assert update_response.json()["detail"] == "Default categories cannot be modified."
+    assert update_response.json()["detail"] == "Categorias padrão não podem ser modificadas."
     assert delete_response.status_code == 403
-    assert delete_response.json()["detail"] == "Default categories cannot be modified."
+    assert delete_response.json()["detail"] == "Categorias padrão não podem ser modificadas."
 
 
 def test_user_cannot_modify_another_users_category(client):

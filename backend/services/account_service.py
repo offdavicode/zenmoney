@@ -22,10 +22,10 @@ class AccountService:
         payload: AccountDeleteRequest,
     ) -> AccountDeleteResponse:
         if not verify_password(payload.current_password, current_user.password_hash):
-            raise AccountServiceError("Current password is incorrect.", 401)
+            raise AccountServiceError("A senha atual está incorreta.", 401)
 
         self.db.delete(current_user)
         self.db.commit()
         return AccountDeleteResponse(
-            message="Account and all associated data were permanently deleted."
+            message="A conta e todos os dados associados foram excluídos permanentemente."
         )

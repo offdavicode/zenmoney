@@ -106,7 +106,7 @@ class TransactionService:
         )
         transaction = self.db.scalar(statement)
         if transaction is None:
-            raise TransactionServiceError("Transaction not found.", 404)
+            raise TransactionServiceError("Transação não encontrada.", 404)
         return transaction
 
     def _resolve_category(
@@ -126,7 +126,7 @@ class TransactionService:
         category = self.db.scalar(statement)
         if category is None:
             raise TransactionServiceError(
-                "Category not found or incompatible with the transaction type.",
+                "Categoria não encontrada ou incompatível com o tipo de transação.",
                 404,
             )
         return category
