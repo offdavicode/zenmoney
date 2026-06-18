@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -17,20 +17,43 @@ class PredictionService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def predict_month_end_balance(self, current_user: User) -> BalancePredictionResponse:
+    def predict_month_end_balance(
+        self,
+        current_user: User,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> BalancePredictionResponse:
         today = now_in_brasilia().date()
-        month_start = today.replace(day=1)
-        next_month_start = self._next_month_start(month_start)
-        days_remaining = max((next_month_start - today).days - 1, 0)
 
-        current_income, current_expense = self._get_current_totals(
-            current_user,
-            month_start,
-            next_month_start,
-        )
+        if start_date is None:
+            start_date = today.replace(day=1)
+        if end_date is None:
+            next_month_start = self._next_month_start(start_date)
+            end_date = next_month_start - timedelta(days=1)
+
+        if start_date > today:
+            elapsed_days = 0
+            days_remaining = max((end_date - start_date).days + 1, 0)
+            current_income = Decimal("0.00")
+            current_expense = Decimal("0.00")
+        else:
+            elapsed_end = min(end_date, today)
+            elapsed_days = max((elapsed_end - start_date).days + 1, 0)
+
+            if end_date > today:
+                days_remaining = max((end_date - today).days, 0)
+            else:
+                days_remaining = 0
+
+            current_income, current_expense = self._get_totals_for_range(
+                current_user,
+                start_date,
+                elapsed_end,
+            )
+
         current_daily_average = self._calculate_current_daily_average(
             current_expense,
-            today.day,
+            elapsed_days,
         )
         expected_variable_expense = self._money(
             current_daily_average * days_remaining
@@ -39,7 +62,7 @@ class PredictionService:
         predicted_end_balance = self._money(current_month_balance - expected_variable_expense)
 
         return BalancePredictionResponse(
-            month=f"{today.year:04d}-{today.month:02d}",
+            month=f"{start_date.year:04d}-{start_date.month:02d}",
             calculated_on=today,
             days_remaining=days_remaining,
             current_income=self._money(current_income),
@@ -53,14 +76,14 @@ class PredictionService:
             expected_remaining_variable_expense=expected_variable_expense,
             predicted_end_balance=predicted_end_balance,
             history_months_used=[],
-            confidence_level=self._confidence_level(today.day, current_expense),
+            confidence_level=self._confidence_level(elapsed_days, current_expense),
         )
 
-    def _get_current_totals(
+    def _get_totals_for_range(
         self,
         current_user: User,
-        month_start: date,
-        next_month_start: date,
+        start_date: date,
+        end_date: date,
     ) -> tuple[Decimal, Decimal]:
         statement = (
             select(
@@ -69,8 +92,8 @@ class PredictionService:
             )
             .where(
                 Transaction.user_id == current_user.id,
-                Transaction.date >= month_start,
-                Transaction.date < next_month_start,
+                Transaction.date >= start_date,
+                Transaction.date <= end_date,
             )
             .group_by(Transaction.type)
         )

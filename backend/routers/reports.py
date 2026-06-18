@@ -27,10 +27,14 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 
 @router.get("/balance-prediction", response_model=BalancePredictionResponse)
 def get_balance_prediction(
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return PredictionService(db).predict_month_end_balance(current_user)
+    return PredictionService(db).predict_month_end_balance(
+        current_user, start_date, end_date
+    )
 
 
 @router.get("/summary", response_model=SummaryReport)

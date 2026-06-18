@@ -205,6 +205,6 @@ export async function getSurvivalModeReport(filters?: ReportFilters): Promise<Su
   return apiGet<SurvivalModeReport>(`/reports/survival-mode${buildQuery(filters)}`);
 }
 
-export async function getBalancePrediction(): Promise<BalancePrediction> {
-  return apiGet<BalancePrediction>('/reports/balance-prediction');
+export async function getBalancePrediction(filters?: ReportFilters): Promise<BalancePrediction> {
+  return apiGet<BalancePrediction>(`/reports/balance-prediction${buildQuery(filters)}`);
 }
