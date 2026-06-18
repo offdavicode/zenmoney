@@ -67,13 +67,13 @@ def test_authenticated_user_can_create_list_update_and_delete_transactions(clien
         json={
             "amount": "75.50",
             "description": "Feira e mercado",
-            "emotion": "",
+            "emotion": "calma",
         },
     )
     assert update_response.status_code == 200
     assert update_response.json()["amount"] == "75.50"
     assert update_response.json()["description"] == "Feira e mercado"
-    assert update_response.json()["emotion"] == "not_specified"
+    assert update_response.json()["emotion"] == "calma"
     assert update_response.json()["registered_at"] == created_transaction["registered_at"]
 
     delete_response = client.delete(f"/api/transactions/{transaction_id}", headers=headers)
@@ -108,7 +108,7 @@ def test_user_cannot_access_another_users_transaction(client):
         headers=second_headers,
     )
     assert forbidden_get_response.status_code == 404
-    assert forbidden_get_response.json()["detail"] == "Transaction not found."
+    assert forbidden_get_response.json()["detail"] == "Transação não encontrada."
 
 
 def test_income_preserves_emotion(client):
@@ -159,7 +159,7 @@ def test_changing_expense_to_income_preserves_emotion(client):
 def test_transactions_require_authentication(client):
     response = client.get("/api/transactions/")
     assert response.status_code == 401
-    assert response.json()["detail"] == "Authentication credentials were not provided."
+    assert response.json()["detail"] == "Credenciais de autenticação não foram fornecidas."
 
 
 def test_transaction_can_use_default_category(client):
@@ -176,6 +176,7 @@ def test_transaction_can_use_default_category(client):
             "amount": "120.00",
             "date": "2026-05-29",
             "description": "Compras do mes",
+            "emotion": "calma",
         },
     )
 
@@ -205,6 +206,7 @@ def test_transaction_can_use_user_category(client):
             "type": "expense",
             "amount": "89.90",
             "date": "2026-05-29",
+            "emotion": "calma",
         },
     )
 
@@ -225,11 +227,12 @@ def test_transaction_rejects_incompatible_category_type(client):
             "type": "expense",
             "amount": "50.00",
             "date": "2026-05-29",
+            "emotion": "calma",
         },
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Category not found or incompatible with the transaction type."
+    assert response.json()["detail"] == "Categoria não encontrada ou incompatível com o tipo de transação."
 
 
 def test_user_cannot_use_another_users_category_in_transaction(client):
@@ -256,11 +259,12 @@ def test_user_cannot_use_another_users_category_in_transaction(client):
             "type": "expense",
             "amount": "39.90",
             "date": "2026-05-29",
+            "emotion": "calma",
         },
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Category not found or incompatible with the transaction type."
+    assert response.json()["detail"] == "Categoria não encontrada ou incompatível com o tipo de transação."
 
 
 def test_transaction_update_rejects_type_that_conflicts_with_current_category(client):
@@ -276,6 +280,7 @@ def test_transaction_update_rejects_type_that_conflicts_with_current_category(cl
             "type": "expense",
             "amount": "75.00",
             "date": "2026-05-29",
+            "emotion": "calma",
         },
     )
     transaction_id = create_response.json()["id"]
@@ -287,7 +292,8 @@ def test_transaction_update_rejects_type_that_conflicts_with_current_category(cl
     )
 
     assert update_response.status_code == 404
-    assert update_response.json()["detail"] == "Category not found or incompatible with the transaction type."
+    assert update_response.status_code == 404
+    assert update_response.json()["detail"] == "Categoria não encontrada ou incompatível com o tipo de transação."
 
 
 def test_transaction_category_can_be_removed_on_update(client):
@@ -303,6 +309,7 @@ def test_transaction_category_can_be_removed_on_update(client):
             "type": "expense",
             "amount": "30.00",
             "date": "2026-05-29",
+            "emotion": "calma",
         },
     )
     transaction_id = create_response.json()["id"]
@@ -354,12 +361,51 @@ def test_transaction_rejects_unknown_emotion(client):
     assert response.status_code == 422
 
 
+def test_transaction_requires_selectable_emotion(client):
+    token = _register_and_login(client, "Emocao Obrigatoria", "emotion-required@example.com")
+    headers = _auth_headers(token)
+
+    missing = client.post(
+        "/api/transactions/",
+        headers=headers,
+        json={
+            "type": "income",
+            "amount": "100.00",
+            "date": "2026-06-10",
+        },
+    )
+    blank = client.post(
+        "/api/transactions/",
+        headers=headers,
+        json={
+            "type": "income",
+            "amount": "100.00",
+            "date": "2026-06-10",
+            "emotion": "",
+        },
+    )
+    not_specified = client.post(
+        "/api/transactions/",
+        headers=headers,
+        json={
+            "type": "income",
+            "amount": "100.00",
+            "date": "2026-06-10",
+            "emotion": "not_specified",
+        },
+    )
+
+    assert missing.status_code == 422
+    assert blank.status_code == 422
+    assert not_specified.status_code == 422
+
+
 def test_emotion_options_endpoint_returns_allowed_values(client):
     response = client.get("/api/transactions/emotions")
 
     assert response.status_code == 200
     values = {option["value"] for option in response.json()}
-    assert "not_specified" in values
+    assert "not_specified" not in values
     assert "calma" in values
     assert "ansiedade" in values
     assert "felicidade" in values

@@ -14,7 +14,11 @@ from pydantic import (
 from schemas.transaction import TransactionResponse
 from utils.category_rules import CategoryType
 from utils.date_utils import now_in_brasilia
-from utils.emotion_rules import DEFAULT_EMOTION, EmotionType, normalize_emotion
+from utils.emotion_rules import (
+    EmotionType,
+    SelectableEmotionType,
+    normalize_required_emotion,
+)
 from utils.recurrence_dates import first_scheduled_on_or_after
 
 
@@ -27,7 +31,7 @@ class RecurrenceCreate(BaseModel):
     type: CategoryType
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     description: str | None = Field(default=None, max_length=256)
-    emotion: EmotionType = DEFAULT_EMOTION
+    emotion: SelectableEmotionType
     frequency: RecurrenceFrequency = "monthly"
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     start_date: date_type
@@ -35,8 +39,8 @@ class RecurrenceCreate(BaseModel):
 
     @field_validator("emotion", mode="before")
     @classmethod
-    def normalize_emotion_value(cls, value: str | None) -> EmotionType:
-        return normalize_emotion(value)
+    def normalize_emotion_value(cls, value: str | None) -> SelectableEmotionType:
+        return normalize_required_emotion(value)
 
     @model_validator(mode="after")
     def validate_date_range(self):
@@ -50,7 +54,7 @@ class RecurrenceUpdate(BaseModel):
     type: CategoryType | None = None
     amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     description: str | None = Field(default=None, max_length=256)
-    emotion: EmotionType | None = None
+    emotion: SelectableEmotionType | None = None
     frequency: RecurrenceFrequency | None = None
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     start_date: date_type | None = None
@@ -58,10 +62,10 @@ class RecurrenceUpdate(BaseModel):
 
     @field_validator("emotion", mode="before")
     @classmethod
-    def normalize_emotion_value(cls, value: str | None) -> EmotionType | None:
+    def normalize_emotion_value(cls, value: str | None) -> SelectableEmotionType | None:
         if value is None:
-            return None
-        return normalize_emotion(value)
+            raise ValueError("Emotion cannot be null.")
+        return normalize_required_emotion(value)
 
     @model_validator(mode="after")
     def reject_null_required_fields(self):

@@ -4,9 +4,10 @@ from utils.category_rules import CategoryType, normalize_category_name
 
 
 class CategoryCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1, max_length=100)
     type: CategoryType
-    parent_id: int | None = None
     is_essential: bool = False
 
     @field_validator("name")
@@ -19,8 +20,9 @@ class CategoryCreate(BaseModel):
 
 
 class CategoryUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    parent_id: int | None = None
     is_essential: bool | None = None
 
     @field_validator("name")
@@ -41,6 +43,5 @@ class CategoryResponse(BaseModel):
     type: CategoryType
     is_default: bool
     is_essential: bool
-    parent_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)

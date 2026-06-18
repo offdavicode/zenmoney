@@ -47,6 +47,7 @@ def _create_transaction(
     category_id: int | None = None,
     transaction_type: str = "expense",
 ) -> dict:
+    emotion = "felicidade" if transaction_type == "income" else "calma"
     response = client.post(
         "/api/transactions/",
         headers=headers,
@@ -55,6 +56,7 @@ def _create_transaction(
             "type": transaction_type,
             "amount": amount,
             "date": transaction_date,
+            "emotion": emotion,
         },
     )
     assert response.status_code == 201
@@ -437,4 +439,4 @@ def test_survival_mode_rejects_invalid_month(client):
     response = client.get("/api/reports/survival-mode?month=2026-13", headers=headers)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Month must use YYYY-MM format."
+    assert response.json()["detail"] == "O mês deve usar o formato AAAA-MM."

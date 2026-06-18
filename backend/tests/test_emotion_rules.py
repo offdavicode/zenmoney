@@ -8,7 +8,14 @@ from sqlalchemy.pool import StaticPool
 
 from database import Base, align_stored_emotions
 from models import Transaction, User
-from utils.emotion_rules import DEFAULT_EMOTION, VALID_EMOTIONS, build_emotion_options, normalize_emotion
+from utils.emotion_rules import (
+    DEFAULT_EMOTION,
+    SELECTABLE_EMOTIONS,
+    VALID_EMOTIONS,
+    build_emotion_options,
+    normalize_emotion,
+    normalize_required_emotion,
+)
 
 REQUIRED_RF04_EMOTIONS = {
     "calma",
@@ -30,6 +37,16 @@ def test_normalize_emotion_defaults_blank_values() -> None:
     assert normalize_emotion("   ") == DEFAULT_EMOTION
 
 
+@pytest.mark.parametrize("value", [None, "", "   ", DEFAULT_EMOTION])
+def test_normalize_required_emotion_rejects_missing_values(value: str | None) -> None:
+    with pytest.raises(ValueError):
+        normalize_required_emotion(value)
+
+
+def test_normalize_required_emotion_accepts_selectable_value() -> None:
+    assert normalize_required_emotion(" Felicidade ") == "felicidade"
+
+
 def test_normalize_emotion_accepts_known_values_case_insensitively() -> None:
     assert normalize_emotion(" ANSIEDADE ") == "ansiedade"
     assert normalize_emotion("Felicidade") == "felicidade"
@@ -43,7 +60,7 @@ def test_normalize_emotion_rejects_unknown_value() -> None:
 def test_emotion_options_cover_valid_emotions() -> None:
     options = build_emotion_options()
 
-    assert {option["value"] for option in options} == set(VALID_EMOTIONS)
+    assert {option["value"] for option in options} == set(SELECTABLE_EMOTIONS)
     assert all(option["label"] for option in options)
 
 

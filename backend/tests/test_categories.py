@@ -49,7 +49,7 @@ def test_category_routes_require_authentication(client, method, path, json_paylo
     response = request(path, json=json_payload) if json_payload is not None else request(path)
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Authentication credentials were not provided."
+    assert response.json()["detail"] == "Credenciais de autenticação não foram fornecidas."
 
 
 def test_authenticated_user_can_list_default_categories(client):
@@ -72,14 +72,26 @@ def test_authenticated_user_can_list_default_categories(client):
     }
 
 
-def test_authenticated_user_can_create_subcategory(client):
+def test_category_response_does_not_expose_subcategory_fields(client):
+    headers = auth_headers(client)
+
+    response = client.post(
+        "/api/categories/",
+        headers=headers,
+        json={
+            "name": "Petiscos",
+            "type": "expense",
+        },
+    )
+
+    assert response.status_code == 201
+    assert "parent_id" not in response.json()
+
+
+def test_category_creation_rejects_subcategory_payload(client):
     headers = auth_headers(client)
     categories_response = client.get("/api/categories/", headers=headers)
-    moradia = next(
-        category
-        for category in categories_response.json()
-        if category["name"] == "Moradia"
-    )
+    moradia = next(category for category in categories_response.json() if category["name"] == "Moradia")
 
     response = client.post(
         "/api/categories/",
@@ -88,73 +100,10 @@ def test_authenticated_user_can_create_subcategory(client):
             "name": "Aluguel residencial",
             "type": "expense",
             "parent_id": moradia["id"],
-            "is_essential": True,
         },
     )
 
-    assert response.status_code == 201
-    assert response.json()["parent_id"] == moradia["id"]
-    assert response.json()["type"] == "expense"
-    assert response.json()["is_default"] is False
-
-
-def test_category_hierarchy_cannot_contain_cycles(client):
-    headers = auth_headers(client)
-    parent_response = client.post(
-        "/api/categories/",
-        headers=headers,
-        json={"name": "Veiculo", "type": "expense"},
-    )
-    child_response = client.post(
-        "/api/categories/",
-        headers=headers,
-        json={
-            "name": "Manutencao do veiculo",
-            "type": "expense",
-            "parent_id": parent_response.json()["id"],
-        },
-    )
-
-    response = client.put(
-        f"/api/categories/{parent_response.json()['id']}",
-        headers=headers,
-        json={"parent_id": child_response.json()["id"]},
-    )
-
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Category hierarchy cannot contain cycles."
-
-
-def test_deleting_parent_category_promotes_child_to_root(client):
-    headers = auth_headers(client)
-    parent_response = client.post(
-        "/api/categories/",
-        headers=headers,
-        json={"name": "Assinaturas", "type": "expense"},
-    )
-    child_response = client.post(
-        "/api/categories/",
-        headers=headers,
-        json={
-            "name": "Streaming",
-            "type": "expense",
-            "parent_id": parent_response.json()["id"],
-        },
-    )
-
-    delete_response = client.delete(
-        f"/api/categories/{parent_response.json()['id']}",
-        headers=headers,
-    )
-    categories_response = client.get("/api/categories/", headers=headers)
-    child_after_delete = next(
-        category
-        for category in categories_response.json()
-        if category["id"] == child_response.json()["id"]
-    )
-
-    assert delete_response.status_code == 204
-    assert child_after_delete["parent_id"] is None
+    assert response.status_code == 422
 
 
 def test_authenticated_user_can_create_update_and_delete_category(client):
@@ -238,6 +187,7 @@ def test_deleting_category_reclassifies_transactions_as_unspecified(
             "amount": "50.00",
             "date": "2026-06-05",
             "category_id": category_id,
+            "emotion": "calma",
         },
     )
     transaction_id = transaction_response.json()["id"]
@@ -271,7 +221,7 @@ def test_category_creation_rejects_duplicate_accessible_name(client):
     assert duplicate_default_response.status_code == 409
     assert (
         duplicate_default_response.json()["detail"]
-        == "A category with this name already exists for this type."
+        == "Já existe uma categoria com este nome para este tipo."
     )
 
     first_response = client.post(
@@ -316,9 +266,9 @@ def test_default_categories_cannot_be_modified(client):
     )
 
     assert update_response.status_code == 403
-    assert update_response.json()["detail"] == "Default categories cannot be modified."
+    assert update_response.json()["detail"] == "Categorias padrão não podem ser modificadas."
     assert delete_response.status_code == 403
-    assert delete_response.json()["detail"] == "Default categories cannot be modified."
+    assert delete_response.json()["detail"] == "Categorias padrão não podem ser modificadas."
 
 
 def test_user_cannot_modify_another_users_category(client):
@@ -349,24 +299,3 @@ def test_user_cannot_modify_another_users_category(client):
     assert delete_response.status_code == 404
 
 
-def test_parent_category_must_have_same_type(client):
-    headers = auth_headers(client)
-    categories_response = client.get("/api/categories/", headers=headers)
-    income_category = next(
-        category
-        for category in categories_response.json()
-        if category["type"] == "income"
-    )
-
-    create_response = client.post(
-        "/api/categories/",
-        headers=headers,
-        json={
-            "name": "Mercado",
-            "type": "expense",
-            "parent_id": income_category["id"],
-        },
-    )
-
-    assert create_response.status_code == 400
-    assert create_response.json()["detail"] == "Parent category must have the same type as the category."

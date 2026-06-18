@@ -131,9 +131,6 @@ export default function DashboardPage() {
   const totalReceitas = useMemo(() => incomeTxs.reduce((acc, tx) => acc + tx.amount, 0), [incomeTxs]);
   const totalDespesas = useMemo(() => expenseTxs.reduce((acc, tx) => acc + tx.amount, 0), [expenseTxs]);
 
-  const maxIncome = useMemo(() => incomeTxs.length > 0 ? Math.max(...incomeTxs.map(t => t.amount)) : 0, [incomeTxs]);
-  const maxExpense = useMemo(() => expenseTxs.length > 0 ? Math.max(...expenseTxs.map(t => t.amount)) : 0, [expenseTxs]);
-
   const selectedMonth = useMemo(() => {
     let d = now;
     if (period === 'last_month') {
@@ -226,9 +223,6 @@ export default function DashboardPage() {
             <span className="text-xs text-muted">
               {incomeTxs.length} transações no período
             </span>
-            <span className="text-xs text-muted">
-              Maior entrada: <span className="font-semibold text-foreground">{formatCurrency(maxIncome)}</span>
-            </span>
           </div>
         </Card>
 
@@ -245,9 +239,6 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-0.5">
             <span className="text-xs text-muted">
               {expenseTxs.length} transações no período
-            </span>
-            <span className="text-xs text-muted">
-              Maior despesa: <span className="font-semibold text-foreground">{formatCurrency(maxExpense)}</span>
             </span>
           </div>
         </Card>

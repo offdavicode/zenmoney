@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_register_login_me_and_logout_cycle(client):
     register_response = client.post(
         "/api/auth/register",
@@ -37,11 +40,34 @@ def test_register_login_me_and_logout_cycle(client):
 
     logout_response = client.post("/api/auth/logout", headers=headers)
     assert logout_response.status_code == 200
-    assert logout_response.json()["message"] == "Logout completed successfully."
+    assert logout_response.json()["message"] == "Logout realizado com sucesso."
 
     revoked_response = client.get("/api/auth/me", headers=headers)
     assert revoked_response.status_code == 401
-    assert revoked_response.json()["detail"] == "Token has been revoked."
+    assert revoked_response.json()["detail"] == "O token foi revogado."
+
+
+@pytest.mark.parametrize(
+    "password",
+    [
+        "senha@123",
+        "SENHA@123",
+        "Senha1234",
+        "Senha@abc",
+        "Se@1",
+    ],
+)
+def test_register_rejects_passwords_that_do_not_match_frontend_rule(client, password):
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Senha Invalida",
+            "email": f"{password.replace('@', 'at')}@example.com",
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_authenticated_user_can_update_profile(client):
@@ -112,7 +138,7 @@ def test_authenticated_user_can_change_password(client):
     )
 
     assert change_password_response.status_code == 200
-    assert change_password_response.json()["message"] == "Password updated successfully."
+    assert change_password_response.json()["message"] == "Senha atualizada com sucesso."
 
     old_login_response = client.post(
         "/api/auth/login",
@@ -168,7 +194,7 @@ def test_profile_update_rejects_duplicate_email(client):
     )
 
     assert update_response.status_code == 409
-    assert update_response.json()["detail"] == "A user with this e-mail already exists."
+    assert update_response.json()["detail"] == "Já existe um usuário cadastrado com este e-mail."
 
 
 def test_login_is_temporarily_blocked_after_repeated_invalid_attempts(client):
@@ -199,4 +225,4 @@ def test_login_is_temporarily_blocked_after_repeated_invalid_attempts(client):
     )
 
     assert blocked_response.status_code == 423
-    assert blocked_response.json()["detail"] == "Access temporarily blocked. Try again later."
+    assert blocked_response.json()["detail"] == "Acesso temporariamente bloqueado. Tente novamente mais tarde."

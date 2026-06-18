@@ -237,7 +237,7 @@ def test_budget_rejects_invalid_values_and_categories(client):
     assert income_category_response.status_code == 404
     assert (
         income_category_response.json()["detail"]
-        == "Category not found or not available for expense budget."
+        == "Categoria não encontrada ou não disponível para orçamento de despesas."
     )
 
 
@@ -337,7 +337,7 @@ def test_budget_rejects_category_sum_above_global_without_partial_update(client)
     assert response.status_code == 400
     assert (
         response.json()["detail"]
-        == "The sum of category limits cannot exceed the global limit."
+        == "A soma dos limites por categoria não pode exceder o limite global."
     )
     assert state_response.json()["global_limit"] is None
     assert state_response.json()["category_limits"] == []
@@ -473,7 +473,7 @@ def test_budget_rejects_invalid_month(client):
     response = client.get("/api/settings/budget?month=2026-13", headers=headers)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Month must use YYYY-MM format."
+    assert response.json()["detail"] == "O mês deve usar o formato AAAA-MM."
 
 
 def test_budget_alert_returns_none_when_no_limit_or_threshold_was_reached(client):

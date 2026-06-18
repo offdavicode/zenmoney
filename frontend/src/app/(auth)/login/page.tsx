@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -9,13 +9,29 @@ import { Input } from '@/components/ui/Input';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const { login, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('zen_remembered_email');
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
+      if (rememberMe) {
+        localStorage.setItem('zen_remembered_email', email);
+      } else {
+        localStorage.removeItem('zen_remembered_email');
+      }
       await login(email, password);
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
@@ -40,7 +56,7 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         {error && (
-          <div className="p-3 text-sm text-white bg-[var(--accent-red)] rounded-md">
+          <div className="p-3 text-sm text-white bg-(--accent-red) rounded-md">
             {error}
           </div>
         )}
@@ -65,12 +81,14 @@ export default function LoginPage() {
 
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer">
-            <input type="checkbox" className="rounded border-border text-brand-600 focus:ring-brand-500" />
+            <input 
+              type="checkbox" 
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="rounded border-border text-brand-600 focus:ring-brand-500" 
+            />
             Lembrar de mim
           </label>
-          <Link href="#" className="text-sm font-medium text-brand-600 hover:text-brand-500">
-            Esqueceu a senha?
-          </Link>
         </div>
 
         <Button type="submit" size="lg" className="w-full" isLoading={isLoading}>

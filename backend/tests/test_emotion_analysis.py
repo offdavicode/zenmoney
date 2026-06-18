@@ -1,4 +1,9 @@
+from datetime import date
+from decimal import Decimal
+
 import pytest
+
+from models.transaction import Transaction
 
 
 ANALYSIS_PATH = "/api/reports/emotion-spending-analysis"
@@ -67,6 +72,28 @@ def _create_many(
             category_id=category_id,
             transaction_date=transaction_date,
         )
+
+
+def _create_legacy_not_specified_expenses(
+    testing_session_local,
+    *,
+    user_id: int,
+    count: int,
+    amount: str,
+    transaction_date: str = "2026-06-10",
+) -> None:
+    with testing_session_local() as db:
+        for _ in range(count):
+            db.add(
+                Transaction(
+                    user_id=user_id,
+                    type="expense",
+                    amount=Decimal(amount),
+                    date=date.fromisoformat(transaction_date),
+                    emotion="not_specified",
+                )
+            )
+        db.commit()
 
 
 def _emotion_item(data: dict, emotion: str) -> dict:
@@ -191,9 +218,18 @@ def test_conclusions_are_disabled_outside_a_single_month(client):
     assert _emotion_item(cross_month_response.json(), "ansiedade")["is_trigger"] is False
 
 
-def test_not_informed_is_displayed_but_excluded_from_reference_and_triggers(client):
+def test_not_informed_is_displayed_but_excluded_from_reference_and_triggers(
+    client,
+    testing_session_local,
+):
     headers = _register_and_login(client, "Gabi RF09", "gabi-rf09@example.com")
-    _create_many(client, headers, count=5, amount="1000.00", emotion="not_specified")
+    user_id = client.get("/api/auth/me", headers=headers).json()["id"]
+    _create_legacy_not_specified_expenses(
+        testing_session_local,
+        user_id=user_id,
+        count=5,
+        amount="1000.00",
+    )
     _create_many(client, headers, count=5, amount="100.00", emotion="calma")
     _create_many(client, headers, count=5, amount="120.00", emotion="ansiedade")
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { registerUser } from '@/services/auth.service';
+import { Check } from 'lucide-react';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -15,8 +16,24 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const router = useRouter();
 
+  const checkMinLength = password.length >= 8;
+  const checkUppercase = /[A-Z]/.test(password);
+  const checkLowercase = /[a-z]/.test(password);
+  const checkNumber = /[0-9]/.test(password);
+  const checkSpecial = /[^A-Za-z0-9_]/.test(password);
+  const isPasswordValid = checkMinLength && checkUppercase && checkLowercase && checkNumber && checkSpecial;
+
+  const requirements = [
+    { label: 'Mínimo de 8 caracteres', met: checkMinLength },
+    { label: 'Pelo menos uma letra maiúscula', met: checkUppercase },
+    { label: 'Pelo menos uma letra minúscula', met: checkLowercase },
+    { label: 'Pelo menos um número', met: checkNumber },
+    { label: 'Pelo menos um caractere especial (ex: @, #, $, etc.)', met: checkSpecial },
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isPasswordValid) return;
     setIsLoading(true);
     setError('');
     try {
@@ -74,12 +91,34 @@ export default function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W]).{8,}"
-            title="Deve conter pelo menos um número, uma letra maiúscula, uma minúscula, um caractere especial e 8 caracteres."
           />
+
+          {password.length > 0 && (
+            <div className="flex flex-col gap-2 p-4 rounded-2xl bg-surface-hover/30 border border-border/50 text-xs">
+              <span className="font-semibold text-secondary mb-1">Requisitos da senha:</span>
+              {requirements.map((req, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  {req.met ? (
+                    <Check size={12} className="text-[var(--accent-green)] shrink-0" />
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted/40 shrink-0" />
+                  )}
+                  <span className={req.met ? 'text-[var(--accent-green)] font-medium transition-colors' : 'text-secondary transition-colors'}>
+                    {req.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <Button type="submit" size="lg" className="w-full" isLoading={isLoading}>
+        <Button 
+          type="submit" 
+          size="lg" 
+          className="w-full" 
+          isLoading={isLoading}
+          disabled={!name || !email || !password || !isPasswordValid}
+        >
           Criar Conta
         </Button>
       </form>

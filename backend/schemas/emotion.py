@@ -1,8 +1,8 @@
 from pydantic import BaseModel
 
-from utils.emotion_rules import EmotionType
+from utils.emotion_rules import SelectableEmotionType
 
 
 class EmotionOptionResponse(BaseModel):
-    value: EmotionType
+    value: SelectableEmotionType
     label: str

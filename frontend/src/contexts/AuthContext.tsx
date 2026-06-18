@@ -3,13 +3,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, loginUser, logoutUser, UserOut } from '@/services/auth.service';
-import { setToken as setApiToken, clearToken as clearApiToken } from '@/services/api';
+import { clearToken as clearApiToken } from '@/services/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: UserOut | null;
-  login: (email: string, password?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
 }
@@ -46,12 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, [loadUser]);
 
-  const login = async (email: string, password?: string) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      
-      
-      await loginUser({ email, password: password || '123456' });
+      await loginUser({ email, password });
       await loadUser();
       router.push('/dashboard');
     } catch (error) {
@@ -65,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logoutUser();
     } catch (e) {
-      
     } finally {
       setIsAuthenticated(false);
       setUser(null);

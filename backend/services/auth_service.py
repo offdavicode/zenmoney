@@ -36,7 +36,7 @@ class AuthService:
             select(User).where(User.email == normalized_email)
         )
         if existing_user is not None:
-            raise AuthServiceError("A user with this e-mail already exists.", 409)
+            raise AuthServiceError("Já existe um usuário cadastrado com este e-mail.", 409)
 
         user = User(
             name=payload.name.strip(),
@@ -53,20 +53,20 @@ class AuthService:
         user = self.db.scalar(select(User).where(User.email == normalized_email))
 
         if user is None:
-            raise AuthServiceError("Invalid e-mail or password.", 401)
+            raise AuthServiceError("E-mail ou senha inválidos.", 401)
 
         now = datetime.now(timezone.utc)
         if user.locked_until is not None:
             locked_until = self._ensure_utc(user.locked_until)
             if locked_until > now:
-                raise AuthServiceError("Access temporarily blocked. Try again later.", 423)
+                raise AuthServiceError("Acesso temporariamente bloqueado. Tente novamente mais tarde.", 423)
             user.locked_until = None
             user.failed_login_attempts = 0
             self.db.commit()
 
         if not verify_password(payload.password, user.password_hash):
             self._register_failed_login_attempt(user)
-            raise AuthServiceError("Invalid e-mail or password.", 401)
+            raise AuthServiceError("E-mail ou senha inválidos.", 401)
 
         user.failed_login_attempts = 0
         user.locked_until = None
@@ -93,7 +93,7 @@ class AuthService:
         expires_at = payload.get("exp")
 
         if token_jti is None or subject is None or expires_at is None:
-            raise AuthServiceError("Invalid authentication token.", 401)
+            raise AuthServiceError("Token de autenticação inválido.", 401)
 
         existing_revocation = self.db.scalar(
             select(RevokedToken).where(RevokedToken.token_jti == token_jti)
@@ -107,7 +107,7 @@ class AuthService:
             self.db.add(revoked_token)
             self.db.commit()
 
-        return LogoutResponse(message="Logout completed successfully.")
+        return LogoutResponse(message="Logout realizado com sucesso.")
 
     def update_profile(self, current_user: User, payload: UserProfileUpdate) -> User:
         has_changes = False
@@ -128,7 +128,7 @@ class AuthService:
                     )
                 )
                 if existing_user is not None:
-                    raise AuthServiceError("A user with this e-mail already exists.", 409)
+                    raise AuthServiceError("Já existe um usuário cadastrado com este e-mail.", 409)
 
                 current_user.email = normalized_email
                 has_changes = True
@@ -146,11 +146,11 @@ class AuthService:
         payload: UserPasswordUpdate,
     ) -> PasswordChangeResponse:
         if not verify_password(payload.current_password, current_user.password_hash):
-            raise AuthServiceError("Current password is incorrect.", 401)
+            raise AuthServiceError("A senha atual está incorreta.", 401)
 
         if payload.current_password == payload.new_password:
             raise AuthServiceError(
-                "The new password must be different from the current password.",
+                "A nova senha deve ser diferente da senha atual.",
                 400,
             )
 
@@ -158,7 +158,7 @@ class AuthService:
         self.db.commit()
         self.db.refresh(current_user)
 
-        return PasswordChangeResponse(message="Password updated successfully.")
+        return PasswordChangeResponse(message="Senha atualizada com sucesso.")
 
     def _register_failed_login_attempt(self, user: User) -> None:
         user.failed_login_attempts += 1

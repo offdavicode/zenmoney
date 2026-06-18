@@ -5,7 +5,11 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from utils.category_rules import CategoryType
-from utils.emotion_rules import DEFAULT_EMOTION, EmotionType, normalize_emotion
+from utils.emotion_rules import (
+    EmotionType,
+    SelectableEmotionType,
+    normalize_required_emotion,
+)
 
 
 class TransactionCreate(BaseModel):
@@ -14,12 +18,12 @@ class TransactionCreate(BaseModel):
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     date: date_type
     description: str | None = Field(default=None, max_length=256)
-    emotion: EmotionType = DEFAULT_EMOTION
+    emotion: SelectableEmotionType
 
     @field_validator("emotion", mode="before")
     @classmethod
-    def normalize_emotion_value(cls, value: str | None) -> EmotionType:
-        return normalize_emotion(value)
+    def normalize_emotion_value(cls, value: str | None) -> SelectableEmotionType:
+        return normalize_required_emotion(value)
 
 
 class TransactionUpdate(BaseModel):
@@ -28,14 +32,14 @@ class TransactionUpdate(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     date: date_type | None = None
     description: str | None = Field(default=None, max_length=256)
-    emotion: EmotionType | None = None
+    emotion: SelectableEmotionType | None = None
 
     @field_validator("emotion", mode="before")
     @classmethod
-    def normalize_emotion_value(cls, value: str | None) -> EmotionType | None:
+    def normalize_emotion_value(cls, value: str | None) -> SelectableEmotionType | None:
         if value is None:
-            return None
-        return normalize_emotion(value)
+            raise ValueError("Emotion cannot be null.")
+        return normalize_required_emotion(value)
 
 
 class TransactionResponse(BaseModel):

@@ -14,7 +14,7 @@ from utils.month_utils import parse_month_label
 
 GLOBAL_BUDGET_NAME = "Limite mensal geral"
 INCONSISTENT_LIMITS_MESSAGE = (
-    "The sum of category limits cannot exceed the global limit."
+    "A soma dos limites por categoria não pode exceder o limite global."
 )
 
 
@@ -80,7 +80,7 @@ class BudgetService:
         seen_category_ids: set[int] = set()
         for item in payload.category_limits:
             if item.category_id in seen_category_ids:
-                raise BudgetServiceError("Duplicate category limit in request.", 400)
+                raise BudgetServiceError("Limite de categoria duplicado na requisição.", 400)
             seen_category_ids.add(item.category_id)
             self._resolve_budget_category(current_user, item.category_id)
 
@@ -213,7 +213,7 @@ class BudgetService:
         )
         category = self.db.scalar(statement)
         if category is None:
-            raise BudgetServiceError("Category not found or not available for expense budget.", 404)
+            raise BudgetServiceError("Categoria não encontrada ou não disponível para orçamento de despesas.", 404)
         return category
 
     def _get_spent_by_category(
