@@ -74,7 +74,7 @@ export default function ConfiguracoesPage() {
       <CategoriesSection />
       <RecurrencesSection />
 
-      {/* Floating Action Bar for Save/Discard */}
+      
       <div 
         className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl transition-all duration-500 ease-in-out transform ${
           hasChanges 

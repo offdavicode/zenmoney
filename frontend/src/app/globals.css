@@ -5,7 +5,7 @@
 @theme {
   --font-sans: 'Outfit', sans-serif;
   
-  /* Brand Colors */
+  
   --color-brand-50: #F0F4FF;
   --color-brand-100: #E0E7FF;
   --color-brand-500: #0052FF;
@@ -27,7 +27,7 @@
 }
 
 :root {
-  /* Light Theme - Visor inspired */
+  
   --bg: #F4F7FC;
   --surface: #FFFFFF;
   --surface-hover: #EEF2F8;
@@ -53,7 +53,7 @@
 }
 
 .dark {
-  /* Dark Theme - Premium navy and electric blue accents */
+  
   --bg: #070913;
   --surface: #0E1120;
   --surface-hover: #171B30;
@@ -92,7 +92,7 @@ body {
   50% { opacity: 0.8; }
 }
 
-/* Glassmorphism utilities */
+
 .glass {
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
@@ -107,7 +107,7 @@ body {
   border-radius: 1.5rem;
 }
 
-/* Hide scrollbar for clean UI */
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -116,7 +116,7 @@ body {
   scrollbar-width: none;
 }
 
-/* Force cursor-pointer for all interactive elements */
+
 button,
 [role="button"],
 input[type="button"],
