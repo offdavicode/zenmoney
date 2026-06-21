@@ -190,9 +190,6 @@ export function TransactionSpreadsheet({
                             <span className={`text-xs font-semibold ${cellBalanceColor}`}>
                               {formatCurrency(Math.abs(balance)).replace('R$', '').trim()}
                             </span>
-                            <span className="text-[9px] text-muted group-hover:text-secondary transition-colors">
-                              {count} {count === 1 ? 'lançamento' : 'lançamentos'}
-                            </span>
                           </button>
                         ) : (
                           <div className="w-full min-h-[40px] flex items-center justify-center" />

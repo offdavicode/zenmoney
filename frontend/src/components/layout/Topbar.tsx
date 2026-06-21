@@ -208,7 +208,7 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full glass border-b border-border">
+    <header className="sticky top-0 z-50 w-full bg-white dark:bg-surface border-b border-border">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         
         <Link href="/dashboard" className="flex items-center gap-2 group">

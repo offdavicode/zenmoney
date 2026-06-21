@@ -7,7 +7,7 @@ import { ArrowRight, ShieldAlert } from 'lucide-react';
 import { SurvivalModeModal } from './SurvivalModeModal';
 
 interface SurvivalModeProps {
-  month?: string; // Formato YYYY-MM
+  month?: string; 
 }
 
 export function SurvivalMode({ month }: SurvivalModeProps) {
