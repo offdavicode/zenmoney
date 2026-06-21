@@ -15,12 +15,12 @@ from utils.category_rules import (
 )
 
 REQUIRED_INCOME_CATEGORIES = {
-    "Salario",
+    "Salário",
     "Aposentadoria",
-    "Pensao",
+    "Pensão",
     "Aluguel",
-    "Pro-labore",
-    "Comissao/bonus",
+    "Pró-labore",
+    "Comissão/Bônus",
     "Freelance",
     "Dividendos e juros",
     "Venda de itens",
@@ -29,9 +29,9 @@ REQUIRED_INCOME_CATEGORIES = {
 REQUIRED_EXPENSE_CATEGORIES = {
     "Moradia",
     "Contas Residenciais",
-    "Saude",
-    "Educacao",
-    "Alimentacao",
+    "Saúde",
+    "Educação",
+    "Alimentação",
     "Transporte",
     "Cuidados Pessoais",
     "Hobbies",
@@ -39,8 +39,8 @@ REQUIRED_EXPENSE_CATEGORIES = {
     "Compras",
     "Lazer",
     "Investimentos",
-    "Dividas",
-    "Reserva de emergencia",
+    "Dívidas",
+    "Reserva de emergência",
 }
 
 
@@ -79,11 +79,11 @@ def test_each_category_type_has_an_unspecified_default() -> None:
 
 
 def test_category_name_is_normalized() -> None:
-    created = CategoryCreate(name="  Alimentacao   fora  ", type="expense")
-    updated = CategoryUpdate(name="  Cartao   de credito ")
+    created = CategoryCreate(name="  Alimentação   fora  ", type="expense")
+    updated = CategoryUpdate(name="  Cartão   de crédito ")
 
-    assert created.name == "Alimentacao fora"
-    assert updated.name == "Cartao de credito"
+    assert created.name == "Alimentação fora"
+    assert updated.name == "Cartão de crédito"
 
 
 def test_invalid_category_type_is_rejected() -> None:

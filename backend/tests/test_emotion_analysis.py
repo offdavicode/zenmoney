@@ -266,7 +266,7 @@ def test_empolgacao_is_a_candidate_emotion_and_can_be_a_trigger(client):
 
 def test_category_trigger_uses_reference_from_same_category(client):
     headers = _register_and_login(client, "Iara RF09", "iara-rf09@example.com")
-    alimentacao = _get_category(client, headers, "Alimentacao")
+    alimentacao = _get_category(client, headers, "Alimentação")
     lazer = _get_category(client, headers, "Lazer")
     _create_many(
         client,
@@ -297,7 +297,7 @@ def test_category_trigger_uses_reference_from_same_category(client):
 
     data = response.json()
     general = _emotion_item(data, "ansiedade")
-    category = _category_trigger(data, "ansiedade", "Alimentacao")
+    category = _category_trigger(data, "ansiedade", "Alimentação")
     assert general["is_trigger"] is False
     assert category["reference_average_amount"] == "100.00"
     assert category["difference_percentage"] == 20.0
@@ -306,7 +306,7 @@ def test_category_trigger_uses_reference_from_same_category(client):
 
 def test_category_trigger_requires_reference_in_same_category(client):
     headers = _register_and_login(client, "Jo RF09", "jo-rf09@example.com")
-    alimentacao = _get_category(client, headers, "Alimentacao")
+    alimentacao = _get_category(client, headers, "Alimentação")
     lazer = _get_category(client, headers, "Lazer")
     _create_many(
         client,
@@ -327,7 +327,7 @@ def test_category_trigger_requires_reference_in_same_category(client):
 
     response = client.get(f"{ANALYSIS_PATH}?month=2026-06", headers=headers)
 
-    category = _category_trigger(response.json(), "ansiedade", "Alimentacao")
+    category = _category_trigger(response.json(), "ansiedade", "Alimentação")
     assert category["reference_transaction_count"] == 0
     assert category["reason"] == "insufficient_reference_data"
     assert category["is_trigger"] is False
@@ -336,9 +336,9 @@ def test_category_trigger_requires_reference_in_same_category(client):
 def test_analysis_respects_user_month_and_category_filters(client):
     first_headers = _register_and_login(client, "Kai RF09", "kai-rf09@example.com")
     second_headers = _register_and_login(client, "Lia RF09", "lia-rf09@example.com")
-    alimentacao = _get_category(client, first_headers, "Alimentacao")
+    alimentacao = _get_category(client, first_headers, "Alimentação")
     lazer = _get_category(client, first_headers, "Lazer")
-    second_alimentacao = _get_category(client, second_headers, "Alimentacao")
+    second_alimentacao = _get_category(client, second_headers, "Alimentação")
 
     _create_many(
         client,
@@ -383,14 +383,14 @@ def test_analysis_respects_user_month_and_category_filters(client):
     assert data["period"]["category_id"] == alimentacao["id"]
     assert _emotion_item(data, "ansiedade")["average_amount"] == "120.00"
     assert all(
-        item["category_name"] == "Alimentacao"
+        item["category_name"] == "Alimentação"
         for item in data["category_distribution"]
     )
 
 
 def test_analysis_returns_top_categories_and_top_transactions_by_emotion(client):
     headers = _register_and_login(client, "Mia RF09", "mia-rf09@example.com")
-    alimentacao = _get_category(client, headers, "Alimentacao")
+    alimentacao = _get_category(client, headers, "Alimentação")
     lazer = _get_category(client, headers, "Lazer")
     first = _create_expense(
         client,
@@ -420,7 +420,7 @@ def test_analysis_returns_top_categories_and_top_transactions_by_emotion(client)
     details = _emotion_details(response.json(), "ansiedade")
     assert [item["category_name"] for item in details["top_categories"]] == [
         "Lazer",
-        "Alimentacao",
+        "Alimentação",
     ]
     assert details["top_categories"][0]["total_amount"] == "350.00"
     assert details["top_transactions"][0]["transaction_id"] == first["id"]

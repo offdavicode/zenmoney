@@ -76,7 +76,7 @@ def seed_data():
     # Popular meses anteriores
     for year, month in past_months:
         # 2 Receitas
-        insert_tx(cat_by_type['income'].get('Salario'), 'income', 3200.00, f"{year}-{month:02d}-05", 'Salário mensal', 'felicidade')
+        insert_tx(cat_by_type['income'].get('Salário'), 'income', 3200.00, f"{year}-{month:02d}-05", 'Salário mensal', 'felicidade')
         insert_tx(cat_by_type['income'].get('Freelance') or cat_by_type['income'].get('Outros recebimentos'), 'income', 650.00, f"{year}-{month:02d}-18", 'Desenvolvimento freelance', 'satisfacao')
 
         # 2 Despesas Recorrentes
@@ -84,9 +84,9 @@ def seed_data():
         insert_tx(bills_cat_id, 'expense', 180.00, f"{year}-{month:02d}-12", 'Energia e Internet', 'indiferenca', bills_recurrence_id, 1)
 
         # 3. Alimentação (Despesa) - Emoção: calma, satisfacao, tedio
-        insert_tx(cat_by_type['expense'].get('Alimentacao'), 'expense', 54.20, f"{year}-{month:02d}-03", 'Almoço Executivo', 'satisfacao')
-        insert_tx(cat_by_type['expense'].get('Alimentacao'), 'expense', 112.50, f"{year}-{month:02d}-15", 'Supermercado Mensal', 'calma')
-        insert_tx(cat_by_type['expense'].get('Alimentacao'), 'expense', 38.00, f"{year}-{month:02d}-27", 'Lanche Rápido', 'tedio')
+        insert_tx(cat_by_type['expense'].get('Alimentação'), 'expense', 54.20, f"{year}-{month:02d}-03", 'Almoço Executivo', 'satisfacao')
+        insert_tx(cat_by_type['expense'].get('Alimentação'), 'expense', 112.50, f"{year}-{month:02d}-15", 'Supermercado Mensal', 'calma')
+        insert_tx(cat_by_type['expense'].get('Alimentação'), 'expense', 38.00, f"{year}-{month:02d}-27", 'Lanche Rápido', 'tedio')
 
         # 4. Transporte (Despesa) - Emoção: estresse, indiferenca
         insert_tx(cat_by_type['expense'].get('Transporte'), 'expense', 45.00, f"{year}-{month:02d}-08", 'Metrô e ônibus', 'indiferenca')
@@ -101,18 +101,18 @@ def seed_data():
         insert_tx(cat_by_type['expense'].get('Roupas') or cat_by_type['expense'].get('Outros gastos'), 'expense', 125.00, f"{year}-{month:02d}-20", 'Acessório eletrônico', 'frustracao')
 
         # 7. Saúde (Despesa) - Emoção: ansiedade, calma
-        insert_tx(cat_by_type['expense'].get('Saude'), 'expense', 150.00, f"{year}-{month:02d}-04", 'Consulta Médica', 'calma')
-        insert_tx(cat_by_type['expense'].get('Saude'), 'expense', 65.00, f"{year}-{month:02d}-16", 'Remédios Farmácia', 'ansiedade')
+        insert_tx(cat_by_type['expense'].get('Saúde'), 'expense', 150.00, f"{year}-{month:02d}-04", 'Consulta Médica', 'calma')
+        insert_tx(cat_by_type['expense'].get('Saúde'), 'expense', 65.00, f"{year}-{month:02d}-16", 'Remédios Farmácia', 'ansiedade')
 
         # 8. Educação (Despesa) - Emoção: satisfacao, estresse
-        insert_tx(cat_by_type['expense'].get('Educacao'), 'expense', 320.00, f"{year}-{month:02d}-01", 'Mensalidade Curso', 'satisfacao')
-        insert_tx(cat_by_type['expense'].get('Educacao'), 'expense', 45.00, f"{year}-{month:02d}-19", 'Livro Acadêmico', 'estresse')
+        insert_tx(cat_by_type['expense'].get('Educação'), 'expense', 320.00, f"{year}-{month:02d}-01", 'Mensalidade Curso', 'satisfacao')
+        insert_tx(cat_by_type['expense'].get('Educação'), 'expense', 45.00, f"{year}-{month:02d}-19", 'Livro Acadêmico', 'estresse')
 
         # 9. Cuidados Pessoais (Despesa) - Emoção: calma, felicidade
         insert_tx(cat_by_type['expense'].get('Cuidados Pessoais'), 'expense', 80.00, f"{year}-{month:02d}-24", 'Corte de Cabelo / Barbearia', 'calma')
 
         # 10. Dívidas / Contas (Despesa) - Emoção: raiva, estresse
-        insert_tx(cat_by_type['expense'].get('Dividas'), 'expense', 200.00, f"{year}-{month:02d}-11", 'Parcela de Empréstimo', 'raiva')
+        insert_tx(cat_by_type['expense'].get('Dívidas'), 'expense', 200.00, f"{year}-{month:02d}-11", 'Parcela de Empréstimo', 'raiva')
 
         # 11. Outros Gastos - Emoção: not_specified (Não especificada)
         insert_tx(cat_by_type['expense'].get('Outros gastos') or cat_by_type['expense'].get('Contas'), 'expense', 50.00, f"{year}-{month:02d}-28", 'Despesa miúda', 'not_specified')
@@ -122,7 +122,7 @@ def seed_data():
     curr_year, curr_month = 2026, 6
 
     # Salário (Receita) - felicidade
-    insert_tx(cat_by_type['income'].get('Salario'), 'income', 3200.00, f"{curr_year}-{curr_month:02d}-05", 'Salário mensal', 'felicidade')
+    insert_tx(cat_by_type['income'].get('Salário'), 'income', 3200.00, f"{curr_year}-{curr_month:02d}-05", 'Salário mensal', 'felicidade')
 
     # Aluguel (Moradia - Recorrente) - calma
     insert_tx(rent_cat_id, 'expense', 1100.00, f"{curr_year}-{curr_month:02d}-10", 'Aluguel do apartamento', 'calma', rent_recurrence_id, 1)
@@ -131,13 +131,13 @@ def seed_data():
     insert_tx(bills_cat_id, 'expense', 180.00, f"{curr_year}-{curr_month:02d}-12", 'Energia e Internet', 'indiferenca', bills_recurrence_id, 1)
 
     # Dia 1: Educação - satisfacao
-    insert_tx(cat_by_type['expense'].get('Educacao'), 'expense', 320.00, f"{curr_year}-{curr_month:02d}-01", 'Mensalidade Curso', 'satisfacao')
+    insert_tx(cat_by_type['expense'].get('Educação'), 'expense', 320.00, f"{curr_year}-{curr_month:02d}-01", 'Mensalidade Curso', 'satisfacao')
     
     # Dia 3: Alimentação - tedio
-    insert_tx(cat_by_type['expense'].get('Alimentacao'), 'expense', 65.40, f"{curr_year}-{curr_month:02d}-03", 'Almoço Restaurante', 'tedio')
+    insert_tx(cat_by_type['expense'].get('Alimentação'), 'expense', 65.40, f"{curr_year}-{curr_month:02d}-03", 'Almoço Restaurante', 'tedio')
 
     # Dia 4: Saúde - estresse
-    insert_tx(cat_by_type['expense'].get('Saude'), 'expense', 90.00, f"{curr_year}-{curr_month:02d}-04", 'Exame Clínico', 'estresse')
+    insert_tx(cat_by_type['expense'].get('Saúde'), 'expense', 90.00, f"{curr_year}-{curr_month:02d}-04", 'Exame Clínico', 'estresse')
 
     # Dia 6: Compras - ansiedade
     insert_tx(cat_by_type['expense'].get('Compras') or cat_by_type['expense'].get('Outros gastos'), 'expense', 120.00, f"{curr_year}-{curr_month:02d}-06", 'Tênis novo', 'ansiedade')
@@ -146,7 +146,7 @@ def seed_data():
     insert_tx(cat_by_type['expense'].get('Transporte'), 'expense', 45.00, f"{curr_year}-{curr_month:02d}-08", 'Abastecimento carro', 'indiferenca')
 
     # Dia 11: Dívidas - raiva
-    insert_tx(cat_by_type['expense'].get('Dividas'), 'expense', 200.00, f"{curr_year}-{curr_month:02d}-11", 'Tarifa Banco', 'raiva')
+    insert_tx(cat_by_type['expense'].get('Dívidas'), 'expense', 200.00, f"{curr_year}-{curr_month:02d}-11", 'Tarifa Banco', 'raiva')
 
     # Dia 14: Lazer - empolgacao
     insert_tx(cat_by_type['expense'].get('Lazer') or cat_by_type['expense'].get('Hobbies'), 'expense', 85.00, f"{curr_year}-{curr_month:02d}-14", 'Cinema e Jantar', 'empolgacao')

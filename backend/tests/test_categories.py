@@ -59,12 +59,12 @@ def test_authenticated_user_can_list_default_categories(client):
     assert response.status_code == 200
     data = response.json()
     names = {category["name"] for category in data}
-    assert "Alimentacao" in names
+    assert "Alimentação" in names
     assert "Moradia" in names
-    assert "Salario" in names
+    assert "Salário" in names
     assert all(category["is_default"] is True for category in data)
     unspecified_categories = [
-        category for category in data if category["name"] == "Nao especificado"
+        category for category in data if category["name"] == "Não especificado"
     ]
     assert {category["type"] for category in unspecified_categories} == {
         "income",
@@ -165,7 +165,7 @@ def test_deleting_category_reclassifies_transactions_as_unspecified(
     unspecified_category = next(
         category
         for category in categories_response.json()
-        if category["name"] == "Nao especificado"
+        if category["name"] == "Não especificado"
         and category["type"] == transaction_type
     )
 
@@ -213,7 +213,7 @@ def test_category_creation_rejects_duplicate_accessible_name(client):
         "/api/categories/",
         headers=headers,
         json={
-            "name": "alimentacao",
+            "name": "alimentação",
             "type": "expense",
         },
     )
@@ -252,7 +252,7 @@ def test_default_categories_cannot_be_modified(client):
     default_category = next(
         category
         for category in categories_response.json()
-        if category["name"] == "Alimentacao"
+        if category["name"] == "Alimentação"
     )
 
     update_response = client.put(

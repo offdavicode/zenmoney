@@ -4,16 +4,16 @@ from typing import Final, Literal
 CategoryType = Literal["income", "expense"]
 
 VALID_CATEGORY_TYPES: Final[tuple[CategoryType, ...]] = ("income", "expense")
-UNSPECIFIED_CATEGORY_NAME: Final[str] = "Nao especificado"
+UNSPECIFIED_CATEGORY_NAME: Final[str] = "Não especificado"
 
 DEFAULT_CATEGORIES_BY_TYPE: Final[dict[CategoryType, tuple[tuple[str, bool], ...]]] = {
     "income": (
-        ("Salario", False),
+        ("Salário", False),
         ("Aposentadoria", False),
-        ("Pensao", False),
+        ("Pensão", False),
         ("Aluguel", False),
-        ("Pro-labore", False),
-        ("Comissao/bonus", False),
+        ("Pró-labore", False),
+        ("Comissão/Bônus", False),
         ("Freelance", False),
         ("Dividendos e juros", False),
         ("Venda de itens", False),
@@ -24,9 +24,9 @@ DEFAULT_CATEGORIES_BY_TYPE: Final[dict[CategoryType, tuple[tuple[str, bool], ...
     "expense": (
         ("Moradia", True),
         ("Contas Residenciais", True),
-        ("Saude", True),
-        ("Educacao", True),
-        ("Alimentacao", True),
+        ("Saúde", True),
+        ("Educação", True),
+        ("Alimentação", True),
         ("Transporte", True),
         ("Cuidados Pessoais", True),
         ("Hobbies", False),
@@ -34,8 +34,8 @@ DEFAULT_CATEGORIES_BY_TYPE: Final[dict[CategoryType, tuple[tuple[str, bool], ...
         ("Compras", False),
         ("Lazer", False),
         ("Investimentos", False),
-        ("Dividas", True),
-        ("Reserva de emergencia", False),
+        ("Dívidas", True),
+        ("Reserva de emergência", False),
         ("Contas", True),
         ("Outros gastos", False),
         (UNSPECIFIED_CATEGORY_NAME, False),

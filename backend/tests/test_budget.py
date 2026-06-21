@@ -64,9 +64,9 @@ def test_user_can_set_global_and_category_budget_limits(client):
     first_headers = _auth_headers(first_token)
     second_headers = _auth_headers(second_token)
 
-    alimentacao = _get_category_by_name(client, first_headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, first_headers, "Alimentação")
     lazer = _get_category_by_name(client, first_headers, "Lazer")
-    second_alimentacao = _get_category_by_name(client, second_headers, "Alimentacao")
+    second_alimentacao = _get_category_by_name(client, second_headers, "Alimentação")
 
     client.post(
         "/api/transactions/",
@@ -153,7 +153,7 @@ def test_user_can_set_global_and_category_budget_limits(client):
     assert global_limit["usage_percentage"] == 75.0
     assert global_limit["is_exceeded"] is False
 
-    alimentacao_limit = _find_category_limit(data, "Alimentacao")
+    alimentacao_limit = _find_category_limit(data, "Alimentação")
     assert alimentacao_limit["limit_amount"] == "120.00"
     assert alimentacao_limit["spent_amount"] == "100.00"
     assert alimentacao_limit["remaining_amount"] == "20.00"
@@ -173,7 +173,7 @@ def test_user_can_set_global_and_category_budget_limits(client):
 def test_budget_limit_can_be_removed(client):
     token = _register_and_login(client, "Olivia Costa", "olivia@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
 
     client.put(
         "/api/settings/budget?month=2026-06",
@@ -213,7 +213,7 @@ def test_budget_limit_can_be_removed(client):
 def test_budget_rejects_invalid_values_and_categories(client):
     token = _register_and_login(client, "Pedro Henrique", "pedro@example.com")
     headers = _auth_headers(token)
-    salario = _get_category_by_name(client, headers, "Salario")
+    salario = _get_category_by_name(client, headers, "Salário")
 
     zero_response = client.put(
         "/api/settings/budget?month=2026-06",
@@ -244,7 +244,7 @@ def test_budget_rejects_invalid_values_and_categories(client):
 def test_category_limits_can_exist_without_global_limit(client):
     token = _register_and_login(client, "Rita Lima", "rita@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
 
     response = client.put(
         "/api/settings/budget?month=2026-06",
@@ -262,13 +262,13 @@ def test_category_limits_can_exist_without_global_limit(client):
     assert response.status_code == 200
     data = response.json()
     assert data["global_limit"] is None
-    assert _find_category_limit(data, "Alimentacao")["limit_amount"] == "300.00"
+    assert _find_category_limit(data, "Alimentação")["limit_amount"] == "300.00"
 
 
 def test_budget_rejects_new_global_below_existing_category_sum(client):
     token = _register_and_login(client, "Roberta Luz", "roberta@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     lazer = _get_category_by_name(client, headers, "Lazer")
     client.put(
         "/api/settings/budget?month=2026-06",
@@ -296,7 +296,7 @@ def test_budget_rejects_new_global_below_existing_category_sum(client):
 def test_category_limit_sum_can_equal_global_limit(client):
     token = _register_and_login(client, "Sara Melo", "sara@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     lazer = _get_category_by_name(client, headers, "Lazer")
 
     response = client.put(
@@ -318,7 +318,7 @@ def test_category_limit_sum_can_equal_global_limit(client):
 def test_budget_rejects_category_sum_above_global_without_partial_update(client):
     token = _register_and_login(client, "Sergio Luz", "sergio@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     lazer = _get_category_by_name(client, headers, "Lazer")
 
     response = client.put(
@@ -346,7 +346,7 @@ def test_budget_rejects_category_sum_above_global_without_partial_update(client)
 def test_budget_rejects_lower_global_below_existing_category_sum(client):
     token = _register_and_login(client, "Talita Neri", "talita@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     lazer = _get_category_by_name(client, headers, "Lazer")
     client.put(
         "/api/settings/budget?month=2026-06",
@@ -374,7 +374,7 @@ def test_budget_rejects_lower_global_below_existing_category_sum(client):
 def test_budget_rejects_category_increase_above_global_without_changing_existing_limit(client):
     token = _register_and_login(client, "Tereza Lima", "tereza@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     lazer = _get_category_by_name(client, headers, "Lazer")
     client.put(
         "/api/settings/budget?month=2026-06",
@@ -406,7 +406,7 @@ def test_budget_rejects_category_increase_above_global_without_changing_existing
 def test_budget_allows_lower_global_when_same_request_removes_enough_category_limits(client):
     token = _register_and_login(client, "Ursula Paz", "ursula@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     lazer = _get_category_by_name(client, headers, "Lazer")
     client.put(
         "/api/settings/budget?month=2026-06",
@@ -435,13 +435,13 @@ def test_budget_allows_lower_global_when_same_request_removes_enough_category_li
     data = response.json()
     assert data["global_limit"]["limit_amount"] == "300.00"
     assert len(data["category_limits"]) == 1
-    assert _find_category_limit(data, "Alimentacao")["limit_amount"] == "300.00"
+    assert _find_category_limit(data, "Alimentação")["limit_amount"] == "300.00"
 
 
 def test_removing_global_limit_preserves_category_limits(client):
     token = _register_and_login(client, "Valeria Reis", "valeria@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
     client.put(
         "/api/settings/budget?month=2026-06",
         headers=headers,
@@ -462,7 +462,7 @@ def test_removing_global_limit_preserves_category_limits(client):
     assert response.status_code == 200
     data = response.json()
     assert data["global_limit"] is None
-    assert _find_category_limit(data, "Alimentacao")["limit_amount"] == "300.00"
+    assert _find_category_limit(data, "Alimentação")["limit_amount"] == "300.00"
     assert data["alerts_enabled"] is True
 
 
@@ -585,7 +585,7 @@ def test_budget_alert_emits_next_threshold_after_more_spending(client):
 def test_budget_alert_returns_highest_alert_when_multiple_limits_cross_thresholds(client):
     token = _register_and_login(client, "Ulisses Paiva", "ulisses@example.com")
     headers = _auth_headers(token)
-    alimentacao = _get_category_by_name(client, headers, "Alimentacao")
+    alimentacao = _get_category_by_name(client, headers, "Alimentação")
 
     client.put(
         "/api/settings/budget?month=2026-06",
@@ -628,7 +628,7 @@ def test_budget_alert_returns_highest_alert_when_multiple_limits_cross_threshold
     alert = response.json()["alert"]
     assert alert["scope"] == "category"
     assert alert["category_id"] == alimentacao["id"]
-    assert alert["category_name"] == "Alimentacao"
+    assert alert["category_name"] == "Alimentação"
     assert alert["threshold_percent"] == 80
     assert alert["spent_amount"] == "100.00"
     assert alert["message"] == "Voce atingiu 80% do limite de Alimentacao."
