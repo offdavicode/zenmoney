@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from '@/utils/formatters';
 import { getBudget, updateBudget, BudgetOut, CategoryLimitInput, getSurvivalModeConfig, updateSurvivalModeConfig } from '@/services/settings.service';
-import { listCategories, CategoryOut } from '@/services/categories.service';
 import { useTransactions } from '@/contexts/TransactionsContext';
 
 interface BudgetSectionProps {
@@ -15,11 +14,10 @@ interface BudgetSectionProps {
 }
 
 export function BudgetSection({ onStateChange, saveRef }: BudgetSectionProps) {
-  const { notifyBudgetUpdated } = useTransactions();
+  const { categories, notifyBudgetUpdated } = useTransactions();
   const [budget, setBudget] = useState<BudgetOut | null>(null);
   const [globalLimit, setGlobalLimit] = useState(0);
   const [globalLimitRaw, setGlobalLimitRaw] = useState('');
-  const [categories, setCategories] = useState<CategoryOut[]>([]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -36,13 +34,11 @@ export function BudgetSection({ onStateChange, saveRef }: BudgetSectionProps) {
 
   const loadData = async () => {
     try {
-      const [budgetData, catData, survivalData] = await Promise.all([
+      const [budgetData, survivalData] = await Promise.all([
         getBudget(),
-        listCategories(),
         getSurvivalModeConfig()
       ]);
       setBudget(budgetData);
-      setCategories(catData);
       
       const valPercent = survivalData.activation_percentage;
       setSurvivalPercent(valPercent);
@@ -275,9 +271,22 @@ export function BudgetSection({ onStateChange, saveRef }: BudgetSectionProps) {
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold">{formatCurrency(catLimit.limit_amount)}</span>
                       <button 
+                        onClick={() => {
+                          setSelectedCatId(catLimit.category_id as number);
+                          setNewCatLimitRaw(formatCurrencyInput(catLimit.limit_amount));
+                          setShowAddLimit(true);
+                        }}
+                        className="text-muted hover:text-primary disabled:opacity-50"
+                        disabled={isSaving}
+                        title="Editar limite"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
                         onClick={() => handleDeleteCategoryLimit(catLimit.category_id as number)}
                         className="text-muted hover:text-[var(--accent-red)] disabled:opacity-50"
                         disabled={isSaving}
+                        title="Excluir limite"
                       >
                         <Trash2 size={16} />
                       </button>

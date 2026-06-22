@@ -1,6 +1,8 @@
 
-export function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', {
+export function formatCurrency(value: number | string): string {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(num)) return String(value);
+  return num.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   });
@@ -13,9 +15,11 @@ export function parseCurrencyInput(rawValue: string): number {
 }
 
 
-export function formatCurrencyInput(value: number): string {
-  if (value === 0) return '';
-  return value.toLocaleString('pt-BR', {
+export function formatCurrencyInput(value: number | string): string {
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(num)) return String(value);
+  if (num === 0) return '';
+  return num.toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

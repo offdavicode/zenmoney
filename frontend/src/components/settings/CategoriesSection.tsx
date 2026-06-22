@@ -5,10 +5,11 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
-import { listCategories, createCategory, updateCategory, deleteCategory, CategoryOut } from '@/services/categories.service';
+import { createCategory, updateCategory, deleteCategory, CategoryOut } from '@/services/categories.service';
+import { useTransactions } from '@/contexts/TransactionsContext';
 
 export function CategoriesSection() {
-  const [categories, setCategories] = useState<CategoryOut[]>([]);
+  const { categories, refreshTransactions } = useTransactions();
   const [isLoading, setIsLoading] = useState(false);
   const [msg, setMsg] = useState('');
   
@@ -17,19 +18,6 @@ export function CategoriesSection() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [isEssential, setIsEssential] = useState(false);
-
-  const loadCategories = async () => {
-    try {
-      const data = await listCategories();
-      setCategories(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
 
   const handleOpenNew = () => {
     setEditId(null);
@@ -60,7 +48,7 @@ export function CategoriesSection() {
       }
       setTimeout(() => setMsg(''), 3000);
       setShowForm(false);
-      await loadCategories();
+      await refreshTransactions();
     } catch (e: any) {
       console.error(e);
     } finally {
@@ -73,7 +61,7 @@ export function CategoriesSection() {
     setIsLoading(true);
     try {
       await deleteCategory(id);
-      await loadCategories();
+      await refreshTransactions();
     } catch (e) {
       console.error(e);
     } finally {

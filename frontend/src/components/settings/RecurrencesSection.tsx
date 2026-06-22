@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/Input';
 import { Plus, PauseCircle, PlayCircle, Trash2, Edit2 } from 'lucide-react';
 import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from '@/utils/formatters';
 import { listRecurrences, createRecurrence, updateRecurrence, pauseRecurrence, resumeRecurrence, deleteRecurrence, RecurrenceOut } from '@/services/recurrences.service';
-import { listCategories, CategoryOut } from '@/services/categories.service';
+import { useTransactions } from '@/contexts/TransactionsContext';
 import { Modal } from '@/components/ui/Modal';
 
 export function RecurrencesSection() {
+  const { categories } = useTransactions();
   const [recurrences, setRecurrences] = useState<RecurrenceOut[]>([]);
-  const [categories, setCategories] = useState<CategoryOut[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [msg, setMsg] = useState('');
   
@@ -66,12 +66,8 @@ export function RecurrencesSection() {
 
   const loadData = async () => {
     try {
-      const [recData, catData] = await Promise.all([
-        listRecurrences(),
-        listCategories()
-      ]);
+      const recData = await listRecurrences();
       setRecurrences(recData);
-      setCategories(catData);
     } catch (e) {
       console.error(e);
     }

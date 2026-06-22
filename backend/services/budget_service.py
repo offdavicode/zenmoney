@@ -94,6 +94,13 @@ class BudgetService:
                 amount=payload.global_limit,
             )
 
+        if "category_limits" in payload.model_fields_set:
+            existing_limits = self._list_limits(current_user)
+            for limit in existing_limits:
+                if limit.category_id is not None and limit.category_id not in seen_category_ids:
+                    self.db.delete(limit)
+                    self._delete_alert_history(current_user, limit.category_id)
+
         for item in payload.category_limits:
             self._set_limit(
                 current_user=current_user,
